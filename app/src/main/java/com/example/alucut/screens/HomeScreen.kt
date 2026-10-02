@@ -11,13 +11,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DoorFront
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.SensorDoor
 import androidx.compose.material.icons.filled.Window
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -27,27 +27,16 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.alucut.R
+import com.example.alucut.data.Template
 import com.example.alucut.data.TemplateType
-
-data class HomeOption(
-    val type: TemplateType,
-    val title: String,
-    val icon: ImageVector
-)
 
 @Composable
 fun HomeScreen(
-    onTypeSelected: (TemplateType) -> Unit
+    templates: List<Template>,
+    onTemplateSelected: (Template) -> Unit,
+    onAddNew: () -> Unit,
+    onEditTemplate: (Template) -> Unit
 ) {
-    val options = listOf(
-        HomeOption(TemplateType.SINGLE_DOOR, "باب بدفة واحدة", Icons.Default.DoorFront),
-        HomeOption(TemplateType.DOUBLE_DOOR, "باب بدفتين", Icons.Default.SensorDoor),
-        HomeOption(TemplateType.SINGLE_WINDOW, "نافذة بدفة واحدة", Icons.Default.Window),
-        HomeOption(TemplateType.DOUBLE_WINDOW, "نافذة بدفتين", Icons.Default.Window),
-        HomeOption(TemplateType.SLIDING_WINDOW, "نافذة بدفتين\nمنزلقتين", Icons.Default.Window),
-        HomeOption(TemplateType.CUSTOM, "أشكال أخرى", Icons.Default.Add)
-    )
-
     Box(Modifier.fillMaxSize()) {
         // خلفية صورة
         Image(
@@ -65,52 +54,119 @@ fun HomeScreen(
 
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(12.dp),
+            modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(top = 20.dp, bottom = 20.dp)
+            contentPadding = PaddingValues(14.dp, 30.dp, 14.dp, 14.dp)
         ) {
-            items(options) { opt ->
-                HomeCard(opt) { onTypeSelected(opt.type) }
+            items(templates, key = { it.id }) { template ->
+                HomeTemplateCard(
+                    template = template,
+                    onClick = { onTemplateSelected(template) },
+                    onEdit = { onEditTemplate(template) }
+                )
+            }
+            item {
+                AddNewCard(onClick = onAddNew)
             }
         }
     }
 }
 
 @Composable
-fun HomeCard(opt: HomeOption, onClick: () -> Unit) {
+fun HomeTemplateCard(
+    template: Template,
+    onClick: () -> Unit,
+    onEdit: () -> Unit
+) {
     Card(
         modifier = Modifier
             .aspectRatio(1f)
             .clickable { onClick() },
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xCCFFF8F0)
-        ),
+        colors = CardDefaults.cardColors(containerColor = Color(0xCCFFF8F0)),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
+        Box(Modifier.fillMaxSize()) {
+            Column(
+                Modifier.fillMaxSize().padding(10.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(
+                    imageVector = iconFor(template.type),
+                    contentDescription = null,
+                    modifier = Modifier.size(44.dp),
+                    tint = Color(0xFF5D4037)
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = template.name,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF3E2723),
+                    textAlign = TextAlign.Center,
+                    lineHeight = 16.sp
+                )
+            }
+            // زر التعديل
+            Box(
+                Modifier.align(Alignment.TopEnd).padding(4.dp)
+            ) {
+                IconButton(
+                    onClick = onEdit,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Edit,
+                        contentDescription = "تعديل",
+                        tint = Color(0xFF8D6E63),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AddNewCard(onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .aspectRatio(1f)
+            .clickable { onClick() },
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0x99D7CCC8)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
         Column(
-            Modifier.fillMaxSize().padding(12.dp),
+            Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Icon(
-                imageVector = opt.icon,
-                contentDescription = null,
-                modifier = Modifier.size(48.dp),
-                tint = Color(0xFF5D4037)
+                Icons.Default.Add,
+                contentDescription = "إضافة نوع",
+                modifier = Modifier.size(52.dp),
+                tint = Color(0xFF4E342E)
             )
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(8.dp))
             Text(
-                text = opt.title,
+                "إضافة نوع جديد",
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF3E2723),
-                textAlign = TextAlign.Center,
-                lineHeight = 17.sp
+                textAlign = TextAlign.Center
             )
         }
     }
+}
+
+fun iconFor(type: TemplateType): ImageVector = when (type) {
+    TemplateType.SINGLE_DOOR -> Icons.Default.DoorFront
+    TemplateType.DOUBLE_DOOR -> Icons.Default.SensorDoor
+    TemplateType.SINGLE_WINDOW -> Icons.Default.Window
+    TemplateType.DOUBLE_WINDOW -> Icons.Default.Window
+    TemplateType.SLIDING_WINDOW -> Icons.Default.Window
+    TemplateType.CUSTOM -> Icons.Default.Add
 }

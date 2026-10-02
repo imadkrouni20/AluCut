@@ -14,7 +14,6 @@ fun AppNavigation(templateRepo: TemplateRepository) {
     val navController = rememberNavController()
 
     var templates by remember { mutableStateOf(templateRepo.getTemplates()) }
-    var currentType by remember { mutableStateOf(TemplateType.SINGLE_DOOR) }
     var currentTemplate by remember { mutableStateOf<Template?>(null) }
     var accumulatedItems by remember { mutableStateOf<List<InputItem>>(emptyList()) }
     var nextItemId by remember { mutableStateOf(1) }
@@ -25,34 +24,18 @@ fun AppNavigation(templateRepo: TemplateRepository) {
     NavHost(navController = navController, startDestination = "home") {
         composable("home") {
             HomeScreen(
-                onTypeSelected = { type ->
-                    currentType = type
-                    // إذا كان CUSTOM، ننقل مباشرة للقوالب
-                    navController.navigate("templates")
-                }
-            )
-        }
-
-        composable("templates") {
-            TemplatesScreen(
-                currentType = currentType,
-                allTemplates = templates,
-                onBack = { navController.popBackStack() },
+                templates = templates,
                 onTemplateSelected = { t ->
                     currentTemplate = t
                     navController.navigate("input")
                 },
-                onEdit = { t ->
-                    currentTemplate = t
-                    navController.navigate("edit_template/false")
-                },
-                onAdd = {
+                onAddNew = {
                     currentTemplate = null
                     navController.navigate("edit_template/true")
                 },
-                onDelete = { t ->
-                    templateRepo.deleteTemplate(t.id)
-                    refreshTemplates()
+                onEditTemplate = { t ->
+                    currentTemplate = t
+                    navController.navigate("edit_template/false")
                 }
             )
         }
@@ -73,6 +56,7 @@ fun AppNavigation(templateRepo: TemplateRepository) {
                         accumulatedItems = accumulatedItems.filterNot { it.id == id }
                     },
                     onAddAnotherType = {
+                        // نرجع للرئيسية لاختيار نوع آخر
                         navController.navigate("home") {
                             popUpTo("home") { inclusive = true }
                         }
@@ -114,7 +98,6 @@ fun AppNavigation(templateRepo: TemplateRepository) {
             TemplateEditorScreen(
                 template = currentTemplate,
                 isNew = isNew,
-                defaultType = currentType,
                 onBack = { navController.popBackStack() },
                 onSave = { t ->
                     if (isNew) templateRepo.addTemplate(t)
