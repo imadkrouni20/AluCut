@@ -14,22 +14,20 @@ fun AppNavigation(templateRepo: TemplateRepository) {
     val navController = rememberNavController()
 
     var templates by remember { mutableStateOf(templateRepo.getTemplates()) }
-    var currentCategory by remember { mutableStateOf(TemplateCategory.DOOR) }
+    var currentType by remember { mutableStateOf(TemplateType.SINGLE_DOOR) }
     var currentTemplate by remember { mutableStateOf<Template?>(null) }
     var accumulatedItems by remember { mutableStateOf<List<InputItem>>(emptyList()) }
     var nextItemId by remember { mutableStateOf(1) }
     var currentResult by remember { mutableStateOf<CuttingResult?>(null) }
 
-    fun refreshTemplates() {
-        templates = templateRepo.getTemplates()
-    }
+    fun refreshTemplates() { templates = templateRepo.getTemplates() }
 
     NavHost(navController = navController, startDestination = "home") {
         composable("home") {
             HomeScreen(
-                onCategorySelected = { catStr ->
-                    currentCategory = if (catStr == "DOOR") TemplateCategory.DOOR
-                                      else TemplateCategory.WINDOW
+                onTypeSelected = { type ->
+                    currentType = type
+                    // إذا كان CUSTOM، ننقل مباشرة للقوالب
                     navController.navigate("templates")
                 }
             )
@@ -37,8 +35,8 @@ fun AppNavigation(templateRepo: TemplateRepository) {
 
         composable("templates") {
             TemplatesScreen(
-                category = currentCategory,
-                templates = templates,
+                currentType = currentType,
+                allTemplates = templates,
                 onBack = { navController.popBackStack() },
                 onTemplateSelected = { t ->
                     currentTemplate = t
@@ -75,18 +73,16 @@ fun AppNavigation(templateRepo: TemplateRepository) {
                         accumulatedItems = accumulatedItems.filterNot { it.id == id }
                     },
                     onAddAnotherType = {
-                        navController.navigate("templates") {
-                            popUpTo("home")
+                        navController.navigate("home") {
+                            popUpTo("home") { inclusive = true }
                         }
                     },
                     onCalculate = {
                         if (accumulatedItems.isNotEmpty()) {
                             val reqs = Calculator.calculateAll(accumulatedItems, templates)
-                            val firstTemplate = templates.find {
-                                it.id == accumulatedItems.first().templateId
-                            }
-                            val barLen = firstTemplate?.params?.get(ParamKeys.BAR_LENGTH) ?: 600.0
-                            val kerf = firstTemplate?.params?.get(ParamKeys.KERF) ?: 0.3
+                            val firstT = templates.find { it.id == accumulatedItems.first().templateId }
+                            val barLen = firstT?.params?.get(ParamKeys.BAR_LENGTH) ?: 600.0
+                            val kerf = firstT?.params?.get(ParamKeys.KERF) ?: 0.3
                             currentResult = CuttingOptimizer.optimize(reqs, barLen, kerf)
                             navController.navigate("result")
                         }
@@ -118,7 +114,7 @@ fun AppNavigation(templateRepo: TemplateRepository) {
             TemplateEditorScreen(
                 template = currentTemplate,
                 isNew = isNew,
-                category = currentCategory,
+                defaultType = currentType,
                 onBack = { navController.popBackStack() },
                 onSave = { t ->
                     if (isNew) templateRepo.addTemplate(t)

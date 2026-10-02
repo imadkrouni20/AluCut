@@ -8,7 +8,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Layers
@@ -24,9 +23,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.alucut.data.InputItem
 import com.example.alucut.data.Template
+import com.example.alucut.ui.FloatingBackButton
 import com.example.alucut.ui.TemplateIllustration
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InputScreen(
     template: Template,
@@ -43,196 +42,173 @@ fun InputScreen(
     var error by remember { mutableStateOf("") }
     var snackbar by remember { mutableStateOf<String?>(null) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(template.name, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "رجوع")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+    Box(Modifier.fillMaxSize().background(Color(0xFF0A0A0A))) {
+        // الرسم التوضيحي
+        TemplateIllustration(
+            type = template.type,
+            modifier = Modifier.fillMaxSize().padding(top = 60.dp, bottom = 140.dp)
+        )
+
+        // زر الرجوع
+        FloatingBackButton(onBack = onBack, modifier = Modifier.align(Alignment.TopStart))
+
+        // اسم القالب (بدون شريط)
+        Surface(
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = 16.dp),
+            shape = RoundedCornerShape(20.dp),
+            color = Color(0xCC1E1E1E)
+        ) {
+            Text(
+                template.name,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp
             )
-        },
-        bottomBar = {
-            Surface(
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 6.dp
+        }
+
+        // Chips
+        if (items.isNotEmpty()) {
+            Row(
+                Modifier.align(Alignment.TopStart).fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(start = 70.dp, end = 10.dp, top = 60.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Button(
-                        onClick = {
-                            error = ""
-                            val w = widthText.toDoubleOrNull()
-                            val h = heightText.toDoubleOrNull()
-                            val c = countText.toIntOrNull()
-                            when {
-                                w == null || w <= 0 -> error = "العرض غير صحيح"
-                                h == null || h <= 0 -> error = "العلو غير صحيح"
-                                c == null || c <= 0 -> error = "العدد غير صحيح"
-                                else -> {
-                                    onAddItem(
-                                        InputItem(
-                                            id = 0,
-                                            templateId = template.id,
-                                            templateName = template.name,
-                                            templateType = template.type,
-                                            templateCategory = template.category,
-                                            count = c,
-                                            widthCm = w,
-                                            heightCm = h
-                                        )
-                                    )
-                                    widthText = ""
-                                    heightText = ""
-                                    countText = "1"
-                                    snackbar = "✓ تمت الإضافة"
-                                }
+                items.forEach { it ->
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.height(30.dp)
+                    ) {
+                        Row(
+                            Modifier.padding(start = 10.dp, end = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("${it.count}× (%.0f×%.0f)".format(it.widthCm, it.heightCm),
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                fontWeight = FontWeight.Bold)
+                            IconButton(onClick = { onRemoveItem(it.id) },
+                                modifier = Modifier.size(22.dp)) {
+                                Icon(Icons.Default.Close, "حذف",
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.size(12.dp))
                             }
-                        },
-                        modifier = Modifier.fillMaxWidth().height(52.dp),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Icon(Icons.Default.Add, contentDescription = null)
-                        Spacer(Modifier.width(6.dp))
-                        Text("إضافة المقاس الحالي", fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold)
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = onAddAnotherType,
-                            modifier = Modifier.weight(1f).height(52.dp),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Icon(Icons.Default.Layers, contentDescription = null)
-                            Spacer(Modifier.width(4.dp))
-                            Text("نوع آخر", fontSize = 14.sp)
-                        }
-
-                        Button(
-                            onClick = onCalculate,
-                            enabled = items.isNotEmpty(),
-                            modifier = Modifier.weight(1f).height(52.dp),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Icon(Icons.Default.Calculate, contentDescription = null)
-                            Spacer(Modifier.width(4.dp))
-                            Text("احسب (${items.size})", fontSize = 14.sp)
                         }
                     }
                 }
             }
         }
-    ) { padding ->
-        Box(
-            modifier = Modifier.fillMaxSize().padding(padding)
-                .background(Color(0xFF0A0A0A))
-        ) {
-            TemplateIllustration(
-                type = template.type,
-                modifier = Modifier.fillMaxSize()
-                    .padding(top = 60.dp, bottom = 40.dp)
-            )
 
-            if (items.isNotEmpty()) {
-                Row(
-                    modifier = Modifier.align(Alignment.TopStart)
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 10.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    items.forEach { it ->
-                        Surface(
-                            shape = RoundedCornerShape(20.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            modifier = Modifier.height(32.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(start = 10.dp, end = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "${it.count}× (%.0f×%.0f)".format(it.widthCm, it.heightCm),
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                IconButton(
-                                    onClick = { onRemoveItem(it.id) },
-                                    modifier = Modifier.size(24.dp)
-                                ) {
-                                    Icon(Icons.Default.Close, contentDescription = "حذف",
-                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                        modifier = Modifier.size(14.dp))
-                                }
+        // حقول الإدخال
+        FloatingInput(
+            value = widthText,
+            onValueChange = { widthText = it },
+            label = "العرض (سم)",
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = 100.dp)
+        )
+        FloatingInput(
+            value = heightText,
+            onValueChange = { heightText = it },
+            label = "العلو (سم)",
+            modifier = Modifier.align(Alignment.CenterEnd).padding(end = 8.dp)
+        )
+        FloatingInput(
+            value = countText,
+            onValueChange = { countText = it },
+            label = "العدد",
+            modifier = Modifier.align(Alignment.Center)
+        )
+
+        // خطأ
+        if (error.isNotEmpty()) {
+            Surface(
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 130.dp),
+                color = MaterialTheme.colorScheme.errorContainer,
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Text(error, Modifier.padding(10.dp),
+                    color = MaterialTheme.colorScheme.onErrorContainer, fontSize = 13.sp)
+            }
+        }
+
+        // Snackbar
+        snackbar?.let { msg ->
+            LaunchedEffect(msg) {
+                kotlinx.coroutines.delay(1500)
+                snackbar = null
+            }
+            Surface(
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 130.dp),
+                color = MaterialTheme.colorScheme.secondary,
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Text(msg, Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
+                    color = MaterialTheme.colorScheme.onSecondary,
+                    fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            }
+        }
+
+        // الأزرار السفلية
+        Surface(
+            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp
+        ) {
+            Column(
+                Modifier.fillMaxWidth().padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = {
+                        error = ""
+                        val w = widthText.toDoubleOrNull()
+                        val h = heightText.toDoubleOrNull()
+                        val c = countText.toIntOrNull()
+                        when {
+                            w == null || w <= 0 -> error = "العرض غير صحيح"
+                            h == null || h <= 0 -> error = "العلو غير صحيح"
+                            c == null || c <= 0 -> error = "العدد غير صحيح"
+                            else -> {
+                                onAddItem(InputItem(0, template.id, template.name,
+                                    template.type, template.category, c, w, h))
+                                widthText = ""
+                                heightText = ""
+                                countText = "1"
+                                snackbar = "✓ تمت الإضافة"
                             }
                         }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.Add, null)
+                    Spacer(Modifier.width(6.dp))
+                    Text("إضافة المقاس", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                }
+
+                Row(Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = onAddAnotherType,
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.Layers, null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("نوع آخر", fontSize = 13.sp)
                     }
-                }
-            }
-
-            FloatingInput(
-                value = widthText,
-                onValueChange = { widthText = it },
-                label = "العرض (سم)",
-                modifier = Modifier.align(Alignment.TopCenter)
-                    .padding(top = if (items.isEmpty()) 16.dp else 60.dp)
-            )
-
-            FloatingInput(
-                value = heightText,
-                onValueChange = { heightText = it },
-                label = "العلو (سم)",
-                modifier = Modifier.align(Alignment.CenterEnd).padding(end = 8.dp)
-            )
-
-            FloatingInput(
-                value = countText,
-                onValueChange = { countText = it },
-                label = "العدد",
-                modifier = Modifier.align(Alignment.Center)
-            )
-
-            if (error.isNotEmpty()) {
-                Surface(
-                    modifier = Modifier.align(Alignment.BottomCenter)
-                        .padding(bottom = 12.dp, start = 16.dp, end = 16.dp),
-                    color = MaterialTheme.colorScheme.errorContainer,
-                    shape = RoundedCornerShape(10.dp)
-                ) {
-                    Text(error, modifier = Modifier.padding(10.dp),
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        fontSize = 13.sp)
-                }
-            }
-
-            snackbar?.let { msg ->
-                LaunchedEffect(msg) {
-                    kotlinx.coroutines.delay(1500)
-                    snackbar = null
-                }
-                Surface(
-                    modifier = Modifier.align(Alignment.BottomCenter)
-                        .padding(bottom = 12.dp),
-                    color = MaterialTheme.colorScheme.secondary,
-                    shape = RoundedCornerShape(20.dp)
-                ) {
-                    Text(msg, modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
-                        color = MaterialTheme.colorScheme.onSecondary,
-                        fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Button(
+                        onClick = onCalculate,
+                        enabled = items.isNotEmpty(),
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.Calculate, null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("احسب (${items.size})", fontSize = 13.sp)
+                    }
                 }
             }
         }

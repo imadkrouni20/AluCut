@@ -3,9 +3,12 @@ package com.example.alucut.data
 enum class TemplateCategory { DOOR, WINDOW }
 
 enum class TemplateType {
-    SLIDING_WINDOW,
-    SINGLE_DOOR,
-    DOUBLE_DOOR_WINDOW
+    SINGLE_DOOR,        // باب بدفة واحدة
+    DOUBLE_DOOR,        // باب بدفتين
+    SINGLE_WINDOW,      // نافذة بدفة واحدة
+    DOUBLE_WINDOW,      // نافذة بدفتين
+    SLIDING_WINDOW,     // نافذة بدفتين منزلقتين
+    CUSTOM              // أشكال أخرى
 }
 
 data class Template(
@@ -18,6 +21,17 @@ data class Template(
 )
 
 data class WindowInput(
+    val count: Int,
+    val widthCm: Double,
+    val heightCm: Double
+)
+
+data class InputItem(
+    val id: Int,
+    val templateId: String,
+    val templateName: String,
+    val templateType: TemplateType,
+    val templateCategory: TemplateCategory,
     val count: Int,
     val widthCm: Double,
     val heightCm: Double
@@ -81,14 +95,3 @@ object ParamKeys {
     const val CADRE_OUVRANT_THICKNESS = "cadreOuvrantThickness"
     const val TOP_BOTTOM_DOUBLE = "topBottomDouble"
 }
-
-data class InputItem(
-    val id: Int,
-    val templateId: String,
-    val templateName: String,
-    val templateType: TemplateType,
-    val templateCategory: TemplateCategory,
-    val count: Int,
-    val widthCm: Double,
-    val heightCm: Double
-)
