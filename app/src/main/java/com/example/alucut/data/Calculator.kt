@@ -15,7 +15,33 @@ object Calculator {
         }
     }
 
-    // ═══════ نافذة منزلقة ═══════
+    fun calculateAll(
+        items: List<InputItem>,
+        templates: List<Template>
+    ): List<CutRequirement> {
+        val allReqs = mutableListOf<CutRequirement>()
+
+        for (item in items) {
+            val template = templates.find { it.id == item.templateId } ?: continue
+            val reqs = calculate(
+                template,
+                WindowInput(item.count, item.widthCm, item.heightCm)
+            )
+            allReqs.addAll(reqs)
+        }
+
+        return allReqs
+            .groupBy { it.type to it.lengthCm }
+            .map { (key, list) ->
+                CutRequirement(
+                    type = key.first,
+                    lengthCm = key.second,
+                    quantity = list.sumOf { it.quantity }
+                )
+            }
+            .sortedByDescending { it.lengthCm }
+    }
+
     private fun slidingWindow(
         p: Map<String, Double>, w: Double, h: Double, n: Int
     ): List<CutRequirement> {
@@ -39,7 +65,6 @@ object Calculator {
         }
     }
 
-    // ═══════ باب واحد ═══════
     private fun singleDoor(
         p: Map<String, Double>, w: Double, h: Double, n: Int
     ): List<CutRequirement> {
@@ -63,7 +88,6 @@ object Calculator {
         }
     }
 
-    // ═══════ نافذة ببابين ═══════
     private fun doubleDoorWindow(
         p: Map<String, Double>, w: Double, h: Double, n: Int
     ): List<CutRequirement> {

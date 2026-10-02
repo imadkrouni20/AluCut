@@ -81,3 +81,14 @@ object ParamKeys {
     const val CADRE_OUVRANT_THICKNESS = "cadreOuvrantThickness"
     const val TOP_BOTTOM_DOUBLE = "topBottomDouble"
 }
+
+data class InputItem(
+    val id: Int,
+    val templateId: String,
+    val templateName: String,
+    val templateType: TemplateType,
+    val templateCategory: TemplateCategory,
+    val count: Int,
+    val widthCm: Double,
+    val heightCm: Double
+)

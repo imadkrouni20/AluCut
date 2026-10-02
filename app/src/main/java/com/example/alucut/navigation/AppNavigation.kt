@@ -16,6 +16,8 @@ fun AppNavigation(templateRepo: TemplateRepository) {
     var templates by remember { mutableStateOf(templateRepo.getTemplates()) }
     var currentCategory by remember { mutableStateOf(TemplateCategory.DOOR) }
     var currentTemplate by remember { mutableStateOf<Template?>(null) }
+    var accumulatedItems by remember { mutableStateOf<List<InputItem>>(emptyList()) }
+    var nextItemId by remember { mutableStateOf(1) }
     var currentResult by remember { mutableStateOf<CuttingResult?>(null) }
 
     fun refreshTemplates() {
@@ -64,13 +66,30 @@ fun AppNavigation(templateRepo: TemplateRepository) {
             } else {
                 InputScreen(
                     template = t,
+                    items = accumulatedItems,
                     onBack = { navController.popBackStack() },
-                    onCalculate = { input ->
-                        val reqs = Calculator.calculate(t, input)
-                        val barLen = t.params[ParamKeys.BAR_LENGTH] ?: 600.0
-                        val kerf = t.params[ParamKeys.KERF] ?: 0.3
-                        currentResult = CuttingOptimizer.optimize(reqs, barLen, kerf)
-                        navController.navigate("result")
+                    onAddItem = { item ->
+                        accumulatedItems = accumulatedItems + item.copy(id = nextItemId++)
+                    },
+                    onRemoveItem = { id ->
+                        accumulatedItems = accumulatedItems.filterNot { it.id == id }
+                    },
+                    onAddAnotherType = {
+                        navController.navigate("templates") {
+                            popUpTo("home")
+                        }
+                    },
+                    onCalculate = {
+                        if (accumulatedItems.isNotEmpty()) {
+                            val reqs = Calculator.calculateAll(accumulatedItems, templates)
+                            val firstTemplate = templates.find {
+                                it.id == accumulatedItems.first().templateId
+                            }
+                            val barLen = firstTemplate?.params?.get(ParamKeys.BAR_LENGTH) ?: 600.0
+                            val kerf = firstTemplate?.params?.get(ParamKeys.KERF) ?: 0.3
+                            currentResult = CuttingOptimizer.optimize(reqs, barLen, kerf)
+                            navController.navigate("result")
+                        }
                     }
                 )
             }
