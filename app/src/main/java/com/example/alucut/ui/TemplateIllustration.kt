@@ -16,10 +16,7 @@ import androidx.compose.ui.unit.dp
 import com.example.alucut.data.TemplateType
 
 @Composable
-fun TemplateIllustration(
-    type: TemplateType,
-    modifier: Modifier = Modifier
-) {
+fun TemplateIllustration(type: TemplateType, modifier: Modifier = Modifier) {
     val frameColor = Color(0xFF4FC3F7)
     val glassColor = Color(0xFF1A3A52)
     val handleColor = Color(0xFFB0BEC5)
@@ -30,86 +27,141 @@ fun TemplateIllustration(
             val h = size.height
             val frame = 10.dp.toPx()
 
-            fun drawFrame() {
-                drawRect(color = frameColor, topLeft = Offset(0f, 0f),
-                    size = Size(w, h), style = Stroke(width = frame))
+            fun drawGlass() { drawRect(glassColor, Offset(0f, 0f), Size(w, h)) }
+            fun drawFrame() { drawRect(frameColor, Offset(0f, 0f), Size(w, h), style = Stroke(frame)) }
+            fun drawVerticalDivider(x: Float) {
+                drawLine(frameColor, Offset(x, 0f), Offset(x, h), frame * 0.7f)
             }
-
-            fun drawGlass() {
-                drawRect(color = glassColor, topLeft = Offset(0f, 0f),
-                    size = Size(w, h))
-            }
-
             fun drawHandle(x: Float, y: Float) {
-                drawCircle(color = handleColor, radius = 12.dp.toPx(),
-                    center = Offset(x, y))
-                drawLine(color = handleColor,
-                    start = Offset(x - 25.dp.toPx(), y),
-                    end = Offset(x - 6.dp.toPx(), y),
-                    strokeWidth = 5.dp.toPx())
+                drawCircle(handleColor, 10.dp.toPx(), Offset(x, y))
+                drawLine(handleColor, Offset(x - 20.dp.toPx(), y), Offset(x - 6.dp.toPx(), y), 4.dp.toPx())
             }
 
             when (type) {
-                TemplateType.SINGLE_DOOR,
-                TemplateType.SINGLE_WINDOW -> {
+                TemplateType.FIXED_WINDOW -> { drawGlass(); drawFrame() }
+                TemplateType.SINGLE_DOOR, TemplateType.SINGLE_WINDOW,
+                TemplateType.AWNING_WINDOW, TemplateType.HOPPER_WINDOW -> {
                     drawGlass(); drawFrame()
-                    // إطار زجاجي داخلي
-                    drawRect(color = frameColor,
-                        topLeft = Offset(w * 0.15f, h * 0.12f),
-                        size = Size(w * 0.7f, h * 0.6f),
-                        style = Stroke(width = frame * 0.4f))
+                    drawRect(frameColor, Offset(w * 0.12f, h * 0.12f),
+                        Size(w * 0.76f, h * 0.76f), style = Stroke(frame * 0.4f))
                     drawHandle(w * 0.85f, h * 0.5f)
                 }
-                TemplateType.DOUBLE_DOOR,
-                TemplateType.DOUBLE_WINDOW -> {
+                TemplateType.DOUBLE_DOOR, TemplateType.DOUBLE_WINDOW -> {
                     drawGlass(); drawFrame()
-                    // فاصل
-                    drawLine(color = frameColor,
-                        start = Offset(w / 2, 0f), end = Offset(w / 2, h),
-                        strokeWidth = frame * 0.7f)
-                    // إطاران داخليان
-                    drawRect(color = frameColor,
-                        topLeft = Offset(w * 0.06f, h * 0.12f),
-                        size = Size(w * 0.38f, h * 0.6f),
-                        style = Stroke(width = frame * 0.4f))
-                    drawRect(color = frameColor,
-                        topLeft = Offset(w * 0.56f, h * 0.12f),
-                        size = Size(w * 0.38f, h * 0.6f),
-                        style = Stroke(width = frame * 0.4f))
+                    drawVerticalDivider(w / 2)
+                    drawRect(frameColor, Offset(w * 0.06f, h * 0.12f),
+                        Size(w * 0.4f, h * 0.76f), style = Stroke(frame * 0.4f))
+                    drawRect(frameColor, Offset(w * 0.54f, h * 0.12f),
+                        Size(w * 0.4f, h * 0.76f), style = Stroke(frame * 0.4f))
                     drawHandle(w * 0.45f, h * 0.5f)
                     drawHandle(w * 0.55f, h * 0.5f)
                 }
-                TemplateType.SLIDING_WINDOW -> {
+                TemplateType.TRIPLE_WINDOW -> {
                     drawGlass(); drawFrame()
-                    // دفتان منزلقتان متراكبتان
-                    drawRect(color = frameColor,
-                        topLeft = Offset(w * 0.05f, h * 0.05f),
-                        size = Size(w * 0.55f, h * 0.9f),
-                        style = Stroke(width = frame * 0.5f))
-                    drawRect(color = frameColor,
-                        topLeft = Offset(w * 0.4f, h * 0.05f),
-                        size = Size(w * 0.55f, h * 0.9f),
-                        style = Stroke(width = frame * 0.5f))
-                    drawHandle(w * 0.6f, h * 0.5f)
-                    drawHandle(w * 0.4f, h * 0.5f)
+                    drawVerticalDivider(w / 3); drawVerticalDivider(2 * w / 3)
+                    for (i in 0..2) {
+                        drawRect(frameColor, Offset(w * (0.05f + 0.32f * i), h * 0.1f),
+                            Size(w * 0.26f, h * 0.8f), style = Stroke(frame * 0.4f))
+                    }
+                }
+                TemplateType.SLIDING_DOOR, TemplateType.SLIDING_WINDOW_2 -> {
+                    drawGlass(); drawFrame()
+                    drawRect(frameColor, Offset(w * 0.05f, h * 0.06f),
+                        Size(w * 0.55f, h * 0.88f), style = Stroke(frame * 0.5f))
+                    drawRect(frameColor, Offset(w * 0.4f, h * 0.06f),
+                        Size(w * 0.55f, h * 0.88f), style = Stroke(frame * 0.5f))
+                    drawHandle(w * 0.58f, h * 0.5f); drawHandle(w * 0.42f, h * 0.5f)
+                }
+                TemplateType.SLIDING_WINDOW_3 -> {
+                    drawGlass(); drawFrame()
+                    for (i in 0..2) {
+                        drawRect(frameColor, Offset(w * (0.03f + 0.32f * i), h * 0.06f),
+                            Size(w * 0.28f, h * 0.88f), style = Stroke(frame * 0.4f))
+                    }
+                }
+                TemplateType.SLIDING_WINDOW_4 -> {
+                    drawGlass(); drawFrame()
+                    for (i in 0..3) {
+                        drawRect(frameColor, Offset(w * (0.03f + 0.24f * i), h * 0.06f),
+                            Size(w * 0.2f, h * 0.88f), style = Stroke(frame * 0.35f))
+                    }
+                }
+                TemplateType.VERTICAL_SLIDER -> {
+                    drawGlass(); drawFrame()
+                    drawLine(frameColor, Offset(0f, h / 2), Offset(w, h / 2), frame * 0.6f)
+                    drawCircle(handleColor, 8.dp.toPx(), Offset(w / 2, h * 0.35f))
+                }
+                TemplateType.FOLDING_DOOR -> {
+                    drawGlass(); drawFrame()
+                    val path = Path().apply {
+                        moveTo(w * 0.1f, h * 0.1f); lineTo(w * 0.3f, h * 0.5f); lineTo(w * 0.1f, h * 0.9f)
+                        moveTo(w * 0.5f, h * 0.1f); lineTo(w * 0.7f, h * 0.5f); lineTo(w * 0.5f, h * 0.9f)
+                    }
+                    drawPath(path, frameColor, style = Stroke(frame * 0.5f))
+                }
+                TemplateType.ARCH_WINDOW -> {
+                    drawGlass()
+                    val path = Path().apply {
+                        moveTo(0f, h); lineTo(0f, h * 0.3f)
+                        quadraticBezierTo(w / 2, -h * 0.1f, w, h * 0.3f)
+                        lineTo(w, h); close()
+                    }
+                    drawPath(path, frameColor, style = Stroke(frame))
+                }
+                TemplateType.WINDOW_DOOR, TemplateType.DOOR_SIDELIGHT -> {
+                    drawGlass(); drawFrame()
+                    drawVerticalDivider(w * 0.6f)
+                    drawRect(frameColor, Offset(w * 0.08f, h * 0.12f),
+                        Size(w * 0.44f, h * 0.76f), style = Stroke(frame * 0.4f))
+                    drawHandle(w * 0.55f, h * 0.5f)
+                }
+                TemplateType.DOOR_TRANSOM -> {
+                    drawGlass(); drawFrame()
+                    drawLine(frameColor, Offset(0f, h * 0.25f), Offset(w, h * 0.25f), frame * 0.6f)
+                    drawHandle(w * 0.85f, h * 0.6f)
+                }
+                TemplateType.BALCONY -> {
+                    drawGlass(); drawFrame()
+                    drawVerticalDivider(w * 0.3f); drawVerticalDivider(w * 0.7f)
+                    drawHandle(w * 0.35f, h * 0.5f); drawHandle(w * 0.65f, h * 0.5f)
+                }
+                TemplateType.GRILLE -> {
+                    drawGlass()
+                    for (i in 0..6) {
+                        drawLine(frameColor, Offset(w * i / 6f, 0f), Offset(w * i / 6f, h), 3.dp.toPx())
+                        drawLine(frameColor, Offset(0f, h * i / 6f), Offset(w, h * i / 6f), 3.dp.toPx())
+                    }
+                }
+                TemplateType.ROLLER_SHUTTER -> {
+                    drawGlass()
+                    for (i in 0..15) {
+                        val y = h * i / 15f
+                        drawLine(frameColor, Offset(0f, y), Offset(w, y), 2.dp.toPx())
+                    }
+                    drawFrame()
+                }
+                TemplateType.BLIND -> {
+                    drawGlass(); drawFrame()
+                    for (i in 0..10) {
+                        val y = h * (0.1f + i * 0.08f)
+                        drawLine(frameColor, Offset(w * 0.1f, y), Offset(w * 0.9f, y), 2.dp.toPx())
+                    }
                 }
                 TemplateType.CUSTOM -> {
-                    // نجمة / شكل مخصص
                     val path = Path().apply {
-                        moveTo(w / 2, h * 0.05f)
-                        lineTo(w * 0.6f, h * 0.4f)
-                        lineTo(w * 0.95f, h * 0.4f)
-                        lineTo(w * 0.68f, h * 0.6f)
-                        lineTo(w * 0.8f, h * 0.95f)
-                        lineTo(w / 2, h * 0.72f)
-                        lineTo(w * 0.2f, h * 0.95f)
-                        lineTo(w * 0.32f, h * 0.6f)
-                        lineTo(w * 0.05f, h * 0.4f)
-                        lineTo(w * 0.4f, h * 0.4f)
+                        val cx = w / 2; val cy = h / 2
+                        val r1 = w * 0.4f; val r2 = w * 0.2f
+                        for (i in 0 until 10) {
+                            val angle = Math.PI * i / 5 - Math.PI / 2
+                            val r = if (i % 2 == 0) r1 else r2
+                            val x = cx + (r * Math.cos(angle)).toFloat()
+                            val y = cy + (r * Math.sin(angle)).toFloat()
+                            if (i == 0) moveTo(x, y) else lineTo(x, y)
+                        }
                         close()
                     }
                     drawPath(path, frameColor.copy(alpha = 0.3f))
-                    drawPath(path, frameColor, style = Stroke(width = frame * 0.5f))
+                    drawPath(path, frameColor, style = Stroke(2.dp.toPx()))
                 }
             }
         }

@@ -1,8 +1,5 @@
 package com.example.alucut.screens
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -10,24 +7,22 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.alucut.data.*
 import com.example.alucut.ui.FloatingBackButton
+import com.example.alucut.ui.colorForType
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TemplateEditorScreen(
     template: Template?,
@@ -35,102 +30,132 @@ fun TemplateEditorScreen(
     onBack: () -> Unit,
     onSave: (Template) -> Unit
 ) {
-    val context = LocalContext.current
     var name by remember { mutableStateOf(template?.name ?: "") }
     var type by remember { mutableStateOf(template?.type ?: TemplateType.SINGLE_DOOR) }
-    var imageUri by remember { mutableStateOf(template?.imageUri ?: "") }
-    val paramsMap = remember {
-        mutableStateMapOf<String, String>().apply {
-            val source = template?.params ?: standardParams(type)
-            source.forEach { (k, v) -> put(k, v.toString()) }
+    var barLength by remember { mutableStateOf((template?.barLengthCm ?: 600.0).toString()) }
+    var kerf by remember { mutableStateOf((template?.kerfCm ?: 0.3).toString()) }
+
+    val vars = remember {
+        mutableStateListOf<FormulaVariable>().apply {
+            addAll(template?.variables ?: VariablesCatalog.suggestedVars())
         }
     }
-    var error by remember { mutableStateOf("") }
-
-    val imagePicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri -> if (uri != null) imageUri = uri.toString() }
-
-    LaunchedEffect(type) {
-        paramsMap.clear()
-        standardParams(type).forEach { (k, v) -> paramsMap[k] = v.toString() }
+    val pieces = remember {
+        mutableStateListOf<CutPiece>().apply {
+            addAll(template?.pieces ?: emptyList())
+        }
     }
 
-    val labelMap = paramLabels()
-    val category = if (type == TemplateType.SINGLE_DOOR ||
-        type == TemplateType.DOUBLE_DOOR) TemplateCategory.DOOR
-        else TemplateCategory.WINDOW
+    // معاينة مباشرة
+    var previewL by remember { mutableStateOf("120") }
+    var previewH by remember { mutableStateOf("100") }
+    var previewResult by remember { mutableStateOf<List<Pair<CutPiece, Pair<Int, Double>>>>(emptyList()) }
+    var previewError by remember { mutableStateOf("") }
+
+    var showVarDialog by remember { mutableStateOf(false) }
+    var showPieceDialog by remember { mutableStateOf(false) }
+    var editingVarIndex by remember { mutableStateOf(-1) }
+    var editingPieceIndex by remember { mutableStateOf(-1) }
+
+    var error by remember { mutableStateOf("") }
 
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(top = 70.dp, bottom = 30.dp, start = 16.dp, end = 16.dp),
+                .padding(top = 70.dp, bottom = 30.dp, start = 14.dp, end = 14.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                if (isNew) "إنشاء نوع جديد" else "تعديل النوع",
-                fontSize = 20.sp, fontWeight = FontWeight.Bold
-            )
+            Text(if (isNew) "إنشاء قالب جديد" else "تعديل القالب",
+                fontSize = 20.sp, fontWeight = FontWeight.Bold)
 
-            OutlinedTextField(
-                value = name, onValueChange = { name = it },
-                label = { Text("اسم النوع") },
-                placeholder = { Text("مثال: باب المدخل") },
-                modifier = Modifier.fillMaxWidth(), singleLine = true,
-                shape = RoundedCornerShape(12.dp)
-            )
-
-            Text("النوع", fontWeight = FontWeight.Bold, fontSize = 15.sp)
-            TemplateType.values().forEach { t ->
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    RadioButton(selected = type == t, onClick = { type = t })
-                    Column(Modifier.weight(1f)) {
-                        Text(typeLabel(t), fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                        Text(typeDescription(t), fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            lineHeight = 14.sp)
+            // ═══ المعلومات الأساسية ═══
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = name, onValueChange = { name = it },
+                        label = { Text("اسم القالب") },
+                        modifier = Modifier.fillMaxWidth(), singleLine = true,
+                        shape = RoundedCornerShape(10.dp)
+                    )
+                    Text("النوع", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    var expanded by remember { mutableStateOf(false) }
+                    ExposedDropdownMenuBox(
+                        expanded = expanded,
+                        onExpandedChange = { expanded = it }
+                    ) {
+                        OutlinedTextField(
+                            value = type.label,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("النوع") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+                            modifier = Modifier.fillMaxWidth().menuAnchor(),
+                            shape = RoundedCornerShape(10.dp)
+                        )
+                        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                            TemplateType.values().forEach { t ->
+                                DropdownMenuItem(
+                                    text = { Text("${t.label} (${t.cat.name})") },
+                                    onClick = { type = t; expanded = false }
+                                )
+                            }
+                        }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = barLength, onValueChange = { barLength = it },
+                            label = { Text("طول العمود سم") },
+                            modifier = Modifier.weight(1f), singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            shape = RoundedCornerShape(10.dp)
+                        )
+                        OutlinedTextField(
+                            value = kerf, onValueChange = { kerf = it },
+                            label = { Text("سمك القرص سم") },
+                            modifier = Modifier.weight(1f), singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            shape = RoundedCornerShape(10.dp)
+                        )
                     }
                 }
             }
 
-            HorizontalDivider()
-
-            Text("مخطط القطع", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-            Text("يوضح مكان كل قطعة",
-                fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-
-            Card(
-                modifier = Modifier.fillMaxWidth().height(240.dp),
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF0A0A0A))
-            ) {
-                TemplateDiagram(type)
+            // ═══ المتغيرات ═══
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("📌 المتغيرات (${vars.size})",
+                    fontWeight = FontWeight.Bold, fontSize = 16.sp,
+                    modifier = Modifier.weight(1f))
+                FilledTonalIconButton(onClick = {
+                    editingVarIndex = -1
+                    showVarDialog = true
+                }) { Icon(Icons.Default.Add, "إضافة متغير") }
             }
 
-            Text("صيغ Débitage القياسية", fontWeight = FontWeight.Bold, fontSize = 15.sp)
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(10.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
-            ) {
-                Column(Modifier.padding(10.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    formulaExplanation(type).forEach { (piece, formula) ->
-                        Row(Modifier.fillMaxWidth()) {
-                            Text("• $piece:", fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp, modifier = Modifier.weight(0.4f),
-                                color = MaterialTheme.colorScheme.primary)
-                            Text(formula, fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.weight(0.6f),
-                                lineHeight = 14.sp)
+            vars.forEachIndexed { idx, v ->
+                Card(colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                    Row(Modifier.fillMaxWidth().padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Text("${v.key} = ${v.defaultValue}",
+                            fontWeight = FontWeight.Bold, fontSize = 14.sp,
+                            modifier = Modifier.width(120.dp))
+                        Text(v.label, fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f))
+                        IconButton(onClick = {
+                            editingVarIndex = idx
+                            showVarDialog = true
+                        }, modifier = Modifier.size(32.dp)) {
+                            Icon(Icons.Default.Add, "تعديل",
+                                modifier = Modifier.size(16.dp))
+                        }
+                        IconButton(onClick = { vars.removeAt(idx) },
+                            modifier = Modifier.size(32.dp)) {
+                            Icon(Icons.Default.Delete, "حذف",
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(16.dp))
                         }
                     }
                 }
@@ -138,41 +163,148 @@ fun TemplateEditorScreen(
 
             HorizontalDivider()
 
-            Text("المعاملات", fontWeight = FontWeight.Bold, fontSize = 15.sp)
-            Text("عدّلها حسب نظام الألمنيوم الخاص بك",
-                fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            // ═══ القطع ═══
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("✂️ القطع (${pieces.size})",
+                    fontWeight = FontWeight.Bold, fontSize = 16.sp,
+                    modifier = Modifier.weight(1f))
+                FilledTonalIconButton(onClick = {
+                    editingPieceIndex = -1
+                    showPieceDialog = true
+                }) { Icon(Icons.Default.Add, "إضافة قطعة") }
+            }
 
-            paramsMap.keys.sorted().forEach { key ->
-                OutlinedTextField(
-                    value = paramsMap[key] ?: "",
-                    onValueChange = { paramsMap[key] = it },
-                    label = { Text(labelMap[key] ?: key) },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    shape = RoundedCornerShape(12.dp)
-                )
+            pieces.forEachIndexed { idx, p ->
+                Card(colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                    Column(Modifier.fillMaxWidth().padding(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.size(10.dp)
+                                .background(colorForType(p.barType),
+                                    RoundedCornerShape(3.dp)))
+                            Spacer(Modifier.width(6.dp))
+                            Text(p.name, fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp, modifier = Modifier.weight(1f))
+                            IconButton(onClick = {
+                                editingPieceIndex = idx
+                                showPieceDialog = true
+                            }, modifier = Modifier.size(28.dp)) {
+                                Icon(Icons.Default.Add, "تعديل",
+                                    modifier = Modifier.size(14.dp))
+                            }
+                            IconButton(onClick = { pieces.removeAt(idx) },
+                                modifier = Modifier.size(28.dp)) {
+                                Icon(Icons.Default.Delete, "حذف",
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(14.dp))
+                            }
+                        }
+                        Text("العدد: ${p.countFormula}  |  الطول: ${p.lengthFormula}",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("زوايا: ${p.angle1}° / ${p.angle2}°  |  عمود: ${p.barType}",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
             }
 
             HorizontalDivider()
 
-            Text("صورة النوع (اختياري)", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            // ═══ المعاينة ═══
+            Text("🔍 معاينة مباشرة", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = previewL, onValueChange = { previewL = it },
+                    label = { Text("عرض تجريبي") },
+                    modifier = Modifier.weight(1f), singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    shape = RoundedCornerShape(10.dp)
+                )
+                OutlinedTextField(
+                    value = previewH, onValueChange = { previewH = it },
+                    label = { Text("ارتفاع تجريبي") },
+                    modifier = Modifier.weight(1f), singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    shape = RoundedCornerShape(10.dp)
+                )
+            }
+
             Button(
-                onClick = { imagePicker.launch("image/*") },
+                onClick = {
+                    previewError = ""
+                    val lVal = previewL.toDoubleOrNull()
+                    val hVal = previewH.toDoubleOrNull()
+                    if (lVal == null || hVal == null) {
+                        previewError = "أدخل قيم صحيحة"
+                        return@Button
+                    }
+                    val tempTemplate = Template(
+                        id = "preview", name = name, type = type,
+                        barLengthCm = barLength.toDoubleOrNull() ?: 600.0,
+                        kerfCm = kerf.toDoubleOrNull() ?: 0.3,
+                        variables = vars.toList(), pieces = pieces.toList()
+                    )
+                    val varsMap = mutableMapOf<String, Double>()
+                    varsMap["l"] = lVal
+                    varsMap["h"] = hVal
+                    varsMap["n"] = 1.0
+                    vars.forEach { varsMap[it.key] = it.defaultValue }
+
+                    val results = mutableListOf<Pair<CutPiece, Pair<Int, Double>>>()
+                    for (p in pieces) {
+                        try {
+                            val c = FormulaEngine.evaluate(p.countFormula, varsMap).toInt()
+                            val ln = FormulaEngine.evaluate(p.lengthFormula, varsMap)
+                            results.add(p to (c to ln))
+                        } catch (e: Exception) {
+                            previewError = "خطأ في \"${p.name}\": ${e.message}"
+                            return@Button
+                        }
+                    }
+                    previewResult = results
+                },
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Icon(Icons.Default.Image, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text(if (imageUri.isEmpty()) "اختر صورة" else "تغيير الصورة")
+                shape = RoundedCornerShape(10.dp)
+            ) { Text("احسب المعاينة") }
+
+            if (previewError.isNotEmpty()) {
+                Surface(color = MaterialTheme.colorScheme.errorContainer,
+                    shape = RoundedCornerShape(8.dp)) {
+                    Text(previewError, Modifier.padding(10.dp),
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        fontSize = 12.sp)
+                }
+            }
+
+            if (previewResult.isNotEmpty()) {
+                Card(colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFF0A0A0A))) {
+                    Column(Modifier.padding(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        previewResult.forEach { (p, vals) ->
+                            Row(Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(Modifier.size(8.dp).background(
+                                        colorForType(p.barType), RoundedCornerShape(2.dp)))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(p.name, fontSize = 12.sp, color = Color.White)
+                                }
+                                Text("${vals.first} × %.1f سم".format(vals.second),
+                                    fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                                    color = colorForType(p.barType))
+                            }
+                        }
+                    }
+                }
             }
 
             if (error.isNotEmpty()) {
-                Surface(
-                    color = MaterialTheme.colorScheme.errorContainer,
-                    shape = RoundedCornerShape(10.dp)
-                ) {
-                    Text(error, modifier = Modifier.fillMaxWidth().padding(12.dp),
+                Surface(color = MaterialTheme.colorScheme.errorContainer,
+                    shape = RoundedCornerShape(8.dp)) {
+                    Text(error, Modifier.padding(10.dp),
                         color = MaterialTheme.colorScheme.onErrorContainer)
                 }
             }
@@ -181,263 +313,223 @@ fun TemplateEditorScreen(
                 onClick = {
                     error = ""
                     if (name.isBlank()) { error = "الاسم مطلوب"; return@Button }
-                    val parsed = mutableMapOf<String, Double>()
-                    for ((k, v) in paramsMap) {
-                        val d = v.toDoubleOrNull()
-                        if (d == null) {
-                            error = "قيمة غير صحيحة في: ${labelMap[k] ?: k}"
-                            return@Button
-                        }
-                        parsed[k] = d
-                    }
+                    if (pieces.isEmpty()) { error = "أضف قطعة على الأقل"; return@Button }
+                    val bl = barLength.toDoubleOrNull()
+                    val k = kerf.toDoubleOrNull()
+                    if (bl == null || k == null) { error = "قيم غير صحيحة"; return@Button }
                     onSave(Template(
-                        id = template?.id ?: "custom_${System.currentTimeMillis()}",
-                        name = name.trim(), type = type, category = category,
-                        imageUri = imageUri, params = parsed
+                        id = template?.id ?: "t_${System.currentTimeMillis()}",
+                        name = name.trim(), type = type,
+                        barLengthCm = bl, kerfCm = k,
+                        variables = vars.toList(), pieces = pieces.toList()
                     ))
                 },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(14.dp)
             ) {
-                Text(if (isNew) "إنشاء" else "حفظ",
+                Text(if (isNew) "إنشاء" else "حفظ التعديلات",
                     fontSize = 17.sp, fontWeight = FontWeight.Bold)
             }
         }
 
         FloatingBackButton(onBack = onBack, modifier = Modifier.align(Alignment.TopStart))
     }
-}
 
-// ═══ الرسم التوضيحي ═══
+    // ═══ نافذة إضافة/تعديل متغير ═══
+    if (showVarDialog) {
+        VariableDialog(
+            existing = if (editingVarIndex >= 0) vars[editingVarIndex] else null,
+            onDismiss = { showVarDialog = false },
+            onSave = { v ->
+                if (editingVarIndex >= 0) vars[editingVarIndex] = v
+                else vars.add(v)
+                showVarDialog = false
+            }
+        )
+    }
 
-@Composable
-fun TemplateDiagram(type: TemplateType) {
-    val dormantColor = Color(0xFF4FC3F7)
-    val ouvrantColor = Color(0xFF29B6F6)
-    val glassColor = Color(0xFF1A3A52)
-    val railColor = Color(0xFF81C784)
-    val meneauColor = Color(0xFFBA68C8)
-    val thresholdColor = Color(0xFFFFB74D)
-
-    Canvas(modifier = Modifier.fillMaxSize().padding(20.dp)) {
-        val w = size.width
-        val h = size.height
-        val frame = 8.dp.toPx()
-        val thin = 5.dp.toPx()
-
-        fun drawBox(color: Color, x: Float, y: Float, ww: Float, hh: Float, stroke: Float) {
-            drawRect(color, Offset(x, y), Size(ww, hh), style = Stroke(stroke))
-        }
-
-        when (type) {
-            TemplateType.SINGLE_DOOR -> {
-                drawRect(glassColor, Offset(frame, frame), Size(w - 2 * frame, h - 2 * frame))
-                drawBox(dormantColor, 0f, 0f, w, h, frame)
-                // Ouvrant
-                drawBox(ouvrantColor, frame * 2, frame * 2,
-                    w - 4 * frame, h - 4 * frame, thin)
-                // خط أفقي للدرفة السفلية
-                drawLine(ouvrantColor,
-                    Offset(frame * 2, h * 0.75f),
-                    Offset(w - frame * 2, h * 0.75f), 2.dp.toPx())
-                // Seuil
-                drawRect(thresholdColor, Offset(frame, h - frame * 1.5f),
-                    Size(w - 2 * frame, frame * 0.6f))
-                // مقبض
-                drawCircle(Color(0xFFB0BEC5), 5.dp.toPx(), Offset(w - frame * 3, h / 2))
+    // ═══ نافذة إضافة/تعديل قطعة ═══
+    if (showPieceDialog) {
+        PieceDialog(
+            existing = if (editingPieceIndex >= 0) pieces[editingPieceIndex] else null,
+            vars = vars.toList(),
+            onDismiss = { showPieceDialog = false },
+            onSave = { p ->
+                if (editingPieceIndex >= 0) pieces[editingPieceIndex] = p
+                else pieces.add(p.copy(id = (pieces.maxOfOrNull { it.id } ?: 0) + 1))
+                showPieceDialog = false
             }
-            TemplateType.DOUBLE_DOOR -> {
-                drawRect(glassColor, Offset(frame, frame), Size(w - 2 * frame, h - 2 * frame))
-                drawBox(dormantColor, 0f, 0f, w, h, frame)
-                // دفة يمنى
-                drawBox(ouvrantColor, frame * 2, frame * 2,
-                    w / 2 - 3 * frame, h - 4 * frame, thin)
-                // دفة يسرى
-                drawBox(ouvrantColor, w / 2 + frame, frame * 2,
-                    w / 2 - 3 * frame, h - 4 * frame, thin)
-                // Seuil
-                drawRect(thresholdColor, Offset(frame, h - frame * 1.5f),
-                    Size(w - 2 * frame, frame * 0.6f))
-                drawCircle(Color(0xFFB0BEC5), 4.dp.toPx(), Offset(w / 2 - frame, h / 2))
-                drawCircle(Color(0xFFB0BEC5), 4.dp.toPx(), Offset(w / 2 + frame, h / 2))
-            }
-            TemplateType.SINGLE_WINDOW -> {
-                drawRect(glassColor, Offset(frame, frame), Size(w - 2 * frame, h - 2 * frame))
-                drawBox(dormantColor, 0f, 0f, w, h, frame)
-                // Parclose داخلي (يفصل الزجاج)
-                drawBox(ouvrantColor, frame * 2, frame * 2,
-                    w - 4 * frame, h - 4 * frame, thin)
-                // خط Parclose
-                drawBox(Color(0xFF81C784), frame * 2.5f, frame * 2.5f,
-                    w - 5 * frame, h - 5 * frame, 2.dp.toPx())
-                drawCircle(Color(0xFFB0BEC5), 5.dp.toPx(), Offset(w - frame * 3, h / 2))
-            }
-            TemplateType.DOUBLE_WINDOW -> {
-                drawRect(glassColor, Offset(frame, frame), Size(w - 2 * frame, h - 2 * frame))
-                drawBox(dormantColor, 0f, 0f, w, h, frame)
-                // Meneau عمودي
-                drawRect(meneauColor, Offset(w / 2 - 3.dp.toPx(), frame),
-                    Size(6.dp.toPx(), h - 2 * frame))
-                // Ouvrant يمين ويسار
-                drawBox(ouvrantColor, frame * 2, frame * 2,
-                    w / 2 - 3 * frame - 3.dp.toPx(), h - 4 * frame, thin)
-                drawBox(ouvrantColor, w / 2 + 3.dp.toPx() + frame, frame * 2,
-                    w / 2 - 3 * frame - 3.dp.toPx(), h - 4 * frame, thin)
-                drawCircle(Color(0xFFB0BEC5), 4.dp.toPx(), Offset(w / 2 - frame * 2, h / 2))
-                drawCircle(Color(0xFFB0BEC5), 4.dp.toPx(), Offset(w / 2 + frame * 2, h / 2))
-            }
-            TemplateType.SLIDING_WINDOW -> {
-                drawRect(glassColor, Offset(frame, frame), Size(w - 2 * frame, h - 2 * frame))
-                drawBox(dormantColor, 0f, 0f, w, h, frame)
-                // Rail علوي
-                drawRect(railColor, Offset(frame, frame * 1.5f),
-                    Size(w - 2 * frame, frame * 0.8f))
-                // Rail سفلي
-                drawRect(railColor, Offset(frame, h - frame * 2.3f),
-                    Size(w - 2 * frame, frame * 0.8f))
-                // دفة منزلقة يمنى (خلفية)
-                drawBox(ouvrantColor, frame * 1.5f, frame * 3f,
-                    w / 2 - 2 * frame, h - 6 * frame, thin)
-                // دفة منزلقة يسرى (أمامية)
-                drawBox(ouvrantColor, w / 2 - frame * 1.5f, frame * 3f,
-                    w / 2 - 2 * frame, h - 6 * frame, thin)
-                // سهم الاتجاه
-                drawLine(railColor,
-                    Offset(w * 0.4f, h / 2),
-                    Offset(w * 0.6f, h / 2), 3.dp.toPx())
-            }
-            TemplateType.CUSTOM -> {
-                val path = Path().apply {
-                    val cx = w / 2; val cy = h / 2
-                    val r1 = w * 0.4f; val r2 = w * 0.2f
-                    for (i in 0 until 10) {
-                        val angle = Math.PI * i / 5 - Math.PI / 2
-                        val r = if (i % 2 == 0) r1 else r2
-                        val x = cx + (r * Math.cos(angle)).toFloat()
-                        val y = cy + (r * Math.sin(angle)).toFloat()
-                        if (i == 0) moveTo(x, y) else lineTo(x, y)
-                    }
-                    close()
-                }
-                drawPath(path, Color(0xFF4FC3F7).copy(alpha = 0.3f))
-                drawPath(path, Color(0xFF4FC3F7), style = Stroke(2.dp.toPx()))
-            }
-        }
+        )
     }
 }
 
-// ═══ الصيغ لكل نوع ═══
+// ═══════════════════════════════════════════
+// نافذة المتغير
+// ═══════════════════════════════════════════
 
-fun standardParams(t: TemplateType): Map<String, Double> = when (t) {
-    TemplateType.SINGLE_DOOR, TemplateType.DOUBLE_DOOR -> mapOf(
-        ParamKeys.BAR_LENGTH to 600.0, ParamKeys.KERF to 0.3,
-        ParamKeys.DORMANT_WIDTH to 5.0,
-        ParamKeys.OUVRANT_WIDTH to 5.0,
-        ParamKeys.OUVRANT_CLEARANCE to 0.3,
-        ParamKeys.THRESHOLD_HEIGHT to 2.0,
-        ParamKeys.GAP to 0.3
-    )
-    TemplateType.SINGLE_WINDOW -> mapOf(
-        ParamKeys.BAR_LENGTH to 600.0, ParamKeys.KERF to 0.3,
-        ParamKeys.DORMANT_WIDTH to 4.5,
-        ParamKeys.OUVRANT_WIDTH to 4.0,
-        ParamKeys.OUVRANT_CLEARANCE to 0.3,
-        ParamKeys.PARCLOSE_WIDTH to 1.5
-    )
-    TemplateType.DOUBLE_WINDOW -> mapOf(
-        ParamKeys.BAR_LENGTH to 600.0, ParamKeys.KERF to 0.3,
-        ParamKeys.DORMANT_WIDTH to 4.5,
-        ParamKeys.OUVRANT_WIDTH to 4.0,
-        ParamKeys.OUVRANT_CLEARANCE to 0.3,
-        ParamKeys.PARCLOSE_WIDTH to 1.5,
-        ParamKeys.MENEAU_WIDTH to 5.0
-    )
-    TemplateType.SLIDING_WINDOW -> mapOf(
-        ParamKeys.BAR_LENGTH to 600.0, ParamKeys.KERF to 0.3,
-        ParamKeys.DORMANT_WIDTH to 4.5,
-        ParamKeys.OUVRANT_WIDTH to 4.0,
-        ParamKeys.OUVRANT_CLEARANCE to 0.3,
-        ParamKeys.PARCLOSE_WIDTH to 1.5,
-        ParamKeys.RAIL_HEIGHT to 3.0
-    )
-    TemplateType.CUSTOM -> mapOf(
-        ParamKeys.BAR_LENGTH to 600.0, ParamKeys.KERF to 0.3,
-        ParamKeys.DORMANT_WIDTH to 4.5,
-        ParamKeys.PARCLOSE_WIDTH to 1.5
+@Composable
+fun VariableDialog(
+    existing: FormulaVariable?,
+    onDismiss: () -> Unit,
+    onSave: (FormulaVariable) -> Unit
+) {
+    var key by remember { mutableStateOf(existing?.key ?: "") }
+    var label by remember { mutableStateOf(existing?.label ?: "") }
+    var value by remember { mutableStateOf(existing?.defaultValue?.toString() ?: "") }
+    var err by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (existing == null) "متغير جديد" else "تعديل المتغير") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(value = key, onValueChange = { key = it },
+                    label = { Text("الرمز (مثل de)") }, singleLine = true)
+                OutlinedTextField(value = label, onValueChange = { label = it },
+                    label = { Text("الوصف") }, singleLine = true)
+                OutlinedTextField(value = value, onValueChange = { value = it },
+                    label = { Text("القيمة الافتراضية") }, singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+                Text("متاح: ${VariablesCatalog.ALL_KEYS.joinToString(", ") { it.first }}",
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (err.isNotEmpty()) Text(err,
+                    color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                err = ""
+                val k = key.trim().lowercase()
+                val v = value.toDoubleOrNull()
+                if (k.isEmpty()) { err = "الرمز مطلوب"; return@TextButton }
+                if (!k.first().isLetter()) { err = "يبدأ بحرف"; return@TextButton }
+                if (v == null) { err = "قيمة غير صحيحة"; return@TextButton }
+                onSave(FormulaVariable(k, label.trim().ifEmpty { k }, v))
+            }) { Text("حفظ") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("إلغاء") } }
     )
 }
 
-fun formulaExplanation(t: TemplateType): List<Pair<String, String>> = when (t) {
-    TemplateType.SINGLE_DOOR -> listOf(
-        "Dormant V" to "H × 2",
-        "Dormant H" to "(L - 2×Dormant) × 1",
-        "Seuil" to "(L - 2×Dormant) × 1",
-        "Ouvrant V" to "(H - 2×Dormant + 2×Jeu) × 2",
-        "Ouvrant H haut" to "((L - 2×Dormant + 2×Jeu) - 2×Ouvrant) × 1",
-        "Ouvrant H bas" to "même + Seuil × 1"
-    )
-    TemplateType.DOUBLE_DOOR -> listOf(
-        "Dormant V" to "H × 2",
-        "Dormant H" to "(L - 2×Dormant) × 1",
-        "Seuil" to "(L - 2×Dormant) × 1",
-        "Ouvrant V" to "(H - 2×Dormant + 2×Jeu) × 4",
-        "Ouvrant H haut" to "((L-2×Dormant-Jeu)/2 - 2×Ouvrant) × 2",
-        "Ouvrant H bas" to "même + Seuil × 2"
-    )
-    TemplateType.SINGLE_WINDOW -> listOf(
-        "Dormant V" to "H × 2",
-        "Dormant H" to "(L - 2×Dormant) × 2",
-        "Ouvrant V" to "(H - 2×Dormant + 2×Jeu) × 2",
-        "Ouvrant H" to "(L - 2×Dormant + 2×Jeu - 2×Ouvrant) × 2",
-        "Parclose V" to "(Ouvrant V - 2×Parclose) × 2",
-        "Parclose H" to "(Ouvrant H - 2×Parclose) × 2"
-    )
-    TemplateType.DOUBLE_WINDOW -> listOf(
-        "Dormant V" to "H × 2",
-        "Dormant H" to "(L - 2×Dormant) × 2",
-        "Meneau" to "(H - 2×Dormant) × 1",
-        "Ouvrant V" to "(H - 2×Dormant + 2×Jeu) × 4",
-        "Ouvrant H" to "((L-2×Dormant-Meneau)/2+2×Jeu-2×Ouvrant) × 4",
-        "Parclose" to "(Ouvrant - 2×Parclose) × 8"
-    )
-    TemplateType.SLIDING_WINDOW -> listOf(
-        "Dormant V" to "H × 2",
-        "Dormant H" to "(L - 2×Dormant) × 2",
-        "Rail" to "(L - 2×Dormant) × 2",
-        "Coulissant V" to "(H - 2×Dormant - 2×Rail + 2×Jeu) × 4",
-        "Coulissant H" to "((L-2×Dormant)/2 + 2×Jeu - 2×Ouvrant) × 4",
-        "Parclose" to "(Coulissant - 2×Parclose) × 8"
-    )
-    TemplateType.CUSTOM -> listOf("معاملات حرة" to "عدّل حسب نظامك")
-}
+// ═══════════════════════════════════════════
+// نافذة القطعة
+// ═══════════════════════════════════════════
 
-fun typeLabel(t: TemplateType): String = when (t) {
-    TemplateType.SINGLE_DOOR -> "باب بدفة واحدة"
-    TemplateType.DOUBLE_DOOR -> "باب بدفتين"
-    TemplateType.SINGLE_WINDOW -> "نافذة بدفة واحدة"
-    TemplateType.DOUBLE_WINDOW -> "نافذة بدفتين"
-    TemplateType.SLIDING_WINDOW -> "نافذة منزلقة"
-    TemplateType.CUSTOM -> "شكل مخصص"
-}
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PieceDialog(
+    existing: CutPiece?,
+    vars: List<FormulaVariable>,
+    onDismiss: () -> Unit,
+    onSave: (CutPiece) -> Unit
+) {
+    var name by remember { mutableStateOf(existing?.name ?: "") }
+    var countFormula by remember { mutableStateOf(existing?.countFormula ?: "1") }
+    var lengthFormula by remember { mutableStateOf(existing?.lengthFormula ?: "l") }
+    var angle1 by remember { mutableStateOf((existing?.angle1 ?: 90).toString()) }
+    var angle2 by remember { mutableStateOf((existing?.angle2 ?: 90).toString()) }
+    var barType by remember { mutableStateOf(existing?.barType ?: "Cadre") }
+    var err by remember { mutableStateOf("") }
 
-fun typeDescription(t: TemplateType): String = when (t) {
-    TemplateType.SINGLE_DOOR -> "Dormant + Seuil + Ouvrant (4)"
-    TemplateType.DOUBLE_DOOR -> "Dormant + Seuil + 2×Ouvrant (8)"
-    TemplateType.SINGLE_WINDOW -> "Dormant + Ouvrant + Parclose"
-    TemplateType.DOUBLE_WINDOW -> "Dormant + Meneau + Ouvrant + Parclose"
-    TemplateType.SLIDING_WINDOW -> "Dormant + Rail + Coulissant + Parclose"
-    TemplateType.CUSTOM -> "معاملات حرة"
-}
+    var countErr by remember { mutableStateOf("") }
+    var lengthErr by remember { mutableStateOf("") }
 
-fun paramLabels(): Map<String, String> = mapOf(
-    ParamKeys.BAR_LENGTH to "طول العمود (سم)",
-    ParamKeys.KERF to "سمك القرص Kerf (سم)",
-    ParamKeys.DORMANT_WIDTH to "عرض Dormant (سم)",
-    ParamKeys.OUVRANT_WIDTH to "عرض Ouvrant (سم)",
-    ParamKeys.OUVRANT_CLEARANCE to "فراغ Ouvrant Jeu (سم)",
-    ParamKeys.PARCLOSE_WIDTH to "عرض Parclose (سم)",
-    ParamKeys.GAP to "الفراغ بين الدفتين (سم)",
-    ParamKeys.MENEAU_WIDTH to "عرض Meneau (سم)",
-    ParamKeys.RAIL_HEIGHT to "ارتفاع Rail (سم)",
-    ParamKeys.THRESHOLD_HEIGHT to "ارتفاع Seuil (سم)"
-)
+    // قائمة أسماء الأعمدة الشائعة
+    val commonBars = listOf("Cadre", "Cadre Fix", "Ouvrant", "Z", "T",
+        "Parclose", "Crouchement", "Meneau", "Rail", "Coulissant", "Seuil")
+
+    val varsMap = mutableMapOf<String, Double>()
+    varsMap["l"] = 120.0
+    varsMap["h"] = 100.0
+    varsMap["n"] = 1.0
+    vars.forEach { varsMap[it.key] = it.defaultValue }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (existing == null) "قطعة جديدة" else "تعديل القطعة") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(value = name, onValueChange = { name = it },
+                    label = { Text("اسم القطعة") }, singleLine = true,
+                    modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = countFormula,
+                    onValueChange = { countFormula = it; countErr = "" },
+                    label = { Text("صيغة العدد") },
+                    placeholder = { Text("1 أو 2 أو n أو 2*n") },
+                    singleLine = true, modifier = Modifier.fillMaxWidth(),
+                    isError = countErr.isNotEmpty())
+                if (countErr.isNotEmpty()) Text(countErr, color = MaterialTheme.colorScheme.error, fontSize = 11.sp)
+                OutlinedTextField(value = lengthFormula,
+                    onValueChange = { lengthFormula = it; lengthErr = "" },
+                    label = { Text("صيغة الطول") },
+                    placeholder = { Text("h-5 أو l-(de*2)") },
+                    singleLine = true, modifier = Modifier.fillMaxWidth(),
+                    isError = lengthErr.isNotEmpty())
+                if (lengthErr.isNotEmpty()) Text(lengthErr, color = MaterialTheme.colorScheme.error, fontSize = 11.sp)
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(value = angle1, onValueChange = { angle1 = it },
+                        label = { Text("زاوية 1") }, singleLine = true,
+                        modifier = Modifier.weight(1f),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                    OutlinedTextField(value = angle2, onValueChange = { angle2 = it },
+                        label = { Text("زاوية 2") }, singleLine = true,
+                        modifier = Modifier.weight(1f),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                }
+
+                Text("العمود (نوع البروفيل)", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    items(commonBars) { b ->
+                        FilterChip(
+                            selected = barType == b,
+                            onClick = { barType = b },
+                            label = { Text(b, fontSize = 11.sp) }
+                        )
+                    }
+                }
+                OutlinedTextField(value = barType, onValueChange = { barType = it },
+                    label = { Text("أو اكتب اسم عمود آخر") },
+                    singleLine = true, modifier = Modifier.fillMaxWidth())
+
+                Text("📋 المتغيرات المتاحة:",
+                    fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    (listOf("l", "h", "n") + vars.map { it.key }).joinToString(", "),
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                if (err.isNotEmpty()) Text(err,
+                    color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                err = ""
+                if (name.isBlank()) { err = "الاسم مطلوب"; return@TextButton }
+                if (!FormulaEngine.isValid(countFormula, varsMap)) {
+                    countErr = "صيغة العدد غير صحيحة"
+                    return@TextButton
+                }
+                if (!FormulaEngine.isValid(lengthFormula, varsMap)) {
+                    lengthErr = "صيغة الطول غير صحيحة"
+                    return@TextButton
+                }
+                val a1 = angle1.toIntOrNull() ?: 90
+                val a2 = angle2.toIntOrNull() ?: 90
+                onSave(CutPiece(
+                    id = existing?.id ?: 0,
+                    name = name.trim(),
+                    countFormula = countFormula.trim(),
+                    lengthFormula = lengthFormula.trim(),
+                    angle1 = a1, angle2 = a2,
+                    barType = barType.trim().ifEmpty { "Cadre" }
+                ))
+            }) { Text("حفظ") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("إلغاء") } }
+    )
+}

@@ -19,7 +19,7 @@ fun AppNavigation(templateRepo: TemplateRepository) {
     var nextItemId by remember { mutableStateOf(1) }
     var currentResult by remember { mutableStateOf<CuttingResult?>(null) }
 
-    fun refreshTemplates() { templates = templateRepo.getTemplates() }
+    fun refresh() { templates = templateRepo.getTemplates() }
 
     NavHost(navController = navController, startDestination = "home") {
         composable("home") {
@@ -56,7 +56,6 @@ fun AppNavigation(templateRepo: TemplateRepository) {
                         accumulatedItems = accumulatedItems.filterNot { it.id == id }
                     },
                     onAddAnotherType = {
-                        // نرجع للرئيسية لاختيار نوع آخر
                         navController.navigate("home") {
                             popUpTo("home") { inclusive = true }
                         }
@@ -65,8 +64,8 @@ fun AppNavigation(templateRepo: TemplateRepository) {
                         if (accumulatedItems.isNotEmpty()) {
                             val reqs = Calculator.calculateAll(accumulatedItems, templates)
                             val firstT = templates.find { it.id == accumulatedItems.first().templateId }
-                            val barLen = firstT?.params?.get(ParamKeys.BAR_LENGTH) ?: 600.0
-                            val kerf = firstT?.params?.get(ParamKeys.KERF) ?: 0.3
+                            val barLen = firstT?.barLengthCm ?: 600.0
+                            val kerf = firstT?.kerfCm ?: 0.3
                             currentResult = CuttingOptimizer.optimize(reqs, barLen, kerf)
                             navController.navigate("result")
                         }
@@ -93,16 +92,16 @@ fun AppNavigation(templateRepo: TemplateRepository) {
         composable(
             route = "edit_template/{isNew}",
             arguments = listOf(navArgument("isNew") { type = NavType.BoolType })
-        ) { backStackEntry ->
-            val isNew = backStackEntry.arguments?.getBoolean("isNew") ?: true
+        ) { back ->
+            val isNew = back.arguments?.getBoolean("isNew") ?: true
             TemplateEditorScreen(
-                template = currentTemplate,
+                template = if (isNew) null else currentTemplate,
                 isNew = isNew,
                 onBack = { navController.popBackStack() },
                 onSave = { t ->
                     if (isNew) templateRepo.addTemplate(t)
                     else templateRepo.updateTemplate(t)
-                    refreshTemplates()
+                    refresh()
                     navController.popBackStack()
                 }
             )
