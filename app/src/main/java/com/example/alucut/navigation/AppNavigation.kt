@@ -98,6 +98,14 @@ fun AppNavigation(templateRepo: TemplateRepository) {
         composable("result") {
             ResultScreen(
                 result = currentResult,
+                onBack = { navController.popBackStack() },
+                onViewSchema = { navController.navigate("schema") }
+            )
+        }
+
+        composable("schema") {
+            SchemaScreen(
+                result = currentResult,
                 onBack = { navController.popBackStack() }
             )
         }
