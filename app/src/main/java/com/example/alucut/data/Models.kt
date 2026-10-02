@@ -33,14 +33,24 @@ data class CutItem(val type: String, val lengthMm: Int)
 
 data class BarCut(
     val index: Int,
+    val type: String,
     val cuts: List<CutItem>,
     val usedMm: Int,
     val wasteMm: Int
 )
 
+data class TypeSummary(
+    val type: String,
+    val barCount: Int,
+    val usedMm: Int,
+    val wasteMm: Int,
+    val wastePercent: Double
+)
+
 data class CuttingResult(
     val requirements: List<CutRequirement>,
     val bars: List<BarCut>,
+    val typeSummaries: List<TypeSummary>,
     val barLengthMm: Int,
     val totalBars: Int,
     val totalWasteMm: Int,
@@ -59,18 +69,14 @@ object CutTypes {
 }
 
 object ParamKeys {
-    // Common
     const val BAR_LENGTH = "barLength"
     const val KERF = "kerf"
-    // Sliding window
     const val FRAME_THICKNESS = "frameThickness"
     const val INNER_VERTICAL = "innerVertical"
     const val TOP_BOTTOM = "topBottom"
-    // Single door
     const val Z_V_OFFSET = "zVOffset"
     const val Z_H_OFFSET = "zHOffset"
     const val T_OFFSET = "tOffset"
-    // Double door window
     const val GAP = "gap"
     const val CADRE_OUVRANT_THICKNESS = "cadreOuvrantThickness"
     const val TOP_BOTTOM_DOUBLE = "topBottomDouble"
