@@ -96,7 +96,7 @@ fun SchemaScreen(
                     }
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         FilledTonalIconButton(
-                            onClick = { exportToPdf(context, result) },
+                            onClick = { saveToDocuments(context, result) },
                             modifier = Modifier.size(48.dp)
                         ) {
                             Icon(Icons.Default.PictureAsPdf, "PDF")
