@@ -20,7 +20,6 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -72,21 +71,17 @@ fun TemplateEditorScreen(
         ) {
             Text(
                 if (isNew) "إنشاء نوع جديد" else "تعديل النوع",
-                fontSize = 20.sp, fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
+                fontSize = 20.sp, fontWeight = FontWeight.Bold
             )
 
             OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
+                value = name, onValueChange = { name = it },
                 label = { Text("اسم النوع") },
                 placeholder = { Text("مثال: باب المدخل") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
+                modifier = Modifier.fillMaxWidth(), singleLine = true,
                 shape = RoundedCornerShape(12.dp)
             )
 
-            // ═══ اختيار النوع ═══
             Text("النوع", fontWeight = FontWeight.Bold, fontSize = 15.sp)
             TemplateType.values().forEach { t ->
                 Row(
@@ -105,13 +100,9 @@ fun TemplateEditorScreen(
 
             HorizontalDivider()
 
-            // ═══ الرسم التوضيحي ═══
             Text("مخطط القطع", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-            Text(
-                "يوضح مكان كل قطعة في المنتج النهائي",
-                fontSize = 11.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Text("يوضح مكان كل قطعة",
+                fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
             Card(
                 modifier = Modifier.fillMaxWidth().height(240.dp),
@@ -121,10 +112,7 @@ fun TemplateEditorScreen(
                 TemplateDiagram(type)
             }
 
-            // ═══ شرح الصيغة ═══
-            Text("صيغة Débitage القياسية", fontWeight = FontWeight.Bold, fontSize = 15.sp)
-
-            val formulas = formulaExplanation(type)
+            Text("صيغ Débitage القياسية", fontWeight = FontWeight.Bold, fontSize = 15.sp)
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(10.dp),
@@ -134,11 +122,10 @@ fun TemplateEditorScreen(
             ) {
                 Column(Modifier.padding(10.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    formulas.forEach { (piece, formula) ->
+                    formulaExplanation(type).forEach { (piece, formula) ->
                         Row(Modifier.fillMaxWidth()) {
                             Text("• $piece:", fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp,
-                                modifier = Modifier.weight(0.4f),
+                                fontSize = 12.sp, modifier = Modifier.weight(0.4f),
                                 color = MaterialTheme.colorScheme.primary)
                             Text(formula, fontSize = 11.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -151,11 +138,9 @@ fun TemplateEditorScreen(
 
             HorizontalDivider()
 
-            // ═══ معاملات Débitage ═══
             Text("المعاملات", fontWeight = FontWeight.Bold, fontSize = 15.sp)
             Text("عدّلها حسب نظام الألمنيوم الخاص بك",
-                fontSize = 11.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
             paramsMap.keys.sorted().forEach { key ->
                 OutlinedTextField(
@@ -171,7 +156,6 @@ fun TemplateEditorScreen(
 
             HorizontalDivider()
 
-            // ═══ صورة ═══
             Text("صورة النوع (اختياري)", fontWeight = FontWeight.Bold, fontSize = 14.sp)
             Button(
                 onClick = { imagePicker.launch("image/*") },
@@ -193,8 +177,6 @@ fun TemplateEditorScreen(
                 }
             }
 
-            Spacer(Modifier.height(8.dp))
-
             Button(
                 onClick = {
                     error = ""
@@ -208,12 +190,11 @@ fun TemplateEditorScreen(
                         }
                         parsed[k] = d
                     }
-                    val t = Template(
+                    onSave(Template(
                         id = template?.id ?: "custom_${System.currentTimeMillis()}",
                         name = name.trim(), type = type, category = category,
                         imageUri = imageUri, params = parsed
-                    )
-                    onSave(t)
+                    ))
                 },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(14.dp)
@@ -227,9 +208,7 @@ fun TemplateEditorScreen(
     }
 }
 
-// ═══════════════════════════════════════════
-// الرسم التوضيحي (Diagram)
-// ═══════════════════════════════════════════
+// ═══ الرسم التوضيحي ═══
 
 @Composable
 fun TemplateDiagram(type: TemplateType) {
@@ -237,128 +216,97 @@ fun TemplateDiagram(type: TemplateType) {
     val ouvrantColor = Color(0xFF29B6F6)
     val glassColor = Color(0xFF1A3A52)
     val railColor = Color(0xFF81C784)
-    val labelColor = Color.White
+    val meneauColor = Color(0xFFBA68C8)
+    val thresholdColor = Color(0xFFFFB74D)
 
     Canvas(modifier = Modifier.fillMaxSize().padding(20.dp)) {
         val w = size.width
         val h = size.height
-        val frame = 10.dp.toPx()
-        val thinFrame = 6.dp.toPx()
-        val textPaint = android.graphics.Paint().apply {
-            color = android.graphics.Color.WHITE
-            textSize = 9.dp.toPx()
-            isAntiAlias = true
-            textAlign = android.graphics.Paint.Align.CENTER
-        }
+        val frame = 8.dp.toPx()
+        val thin = 5.dp.toPx()
 
-        fun drawLabel(text: String, x: Float, y: Float) {
-            drawContext.canvas.nativeCanvas.drawText(text, x, y, textPaint)
+        fun drawBox(color: Color, x: Float, y: Float, ww: Float, hh: Float, stroke: Float) {
+            drawRect(color, Offset(x, y), Size(ww, hh), style = Stroke(stroke))
         }
 
         when (type) {
             TemplateType.SINGLE_DOOR -> {
-                // زجاج
-                drawRect(glassColor, Offset(frame, frame),
-                    Size(w - 2 * frame, h - 2 * frame))
-                // Dormant (إطار خارجي)
-                drawRect(dormantColor, Offset(0f, 0f), Size(w, h),
-                    style = Stroke(frame))
-                // Ouvrant (الدرفة الداخلية)
-                drawRect(ouvrantColor,
-                    Offset(frame * 2, frame * 2),
-                    Size(w - 4 * frame, h - 4 * frame),
-                    style = Stroke(thinFrame))
+                drawRect(glassColor, Offset(frame, frame), Size(w - 2 * frame, h - 2 * frame))
+                drawBox(dormantColor, 0f, 0f, w, h, frame)
+                // Ouvrant
+                drawBox(ouvrantColor, frame * 2, frame * 2,
+                    w - 4 * frame, h - 4 * frame, thin)
+                // خط أفقي للدرفة السفلية
+                drawLine(ouvrantColor,
+                    Offset(frame * 2, h * 0.75f),
+                    Offset(w - frame * 2, h * 0.75f), 2.dp.toPx())
+                // Seuil
+                drawRect(thresholdColor, Offset(frame, h - frame * 1.5f),
+                    Size(w - 2 * frame, frame * 0.6f))
                 // مقبض
-                drawCircle(Color(0xFFB0BEC5), 6.dp.toPx(),
-                    Offset(w - frame * 3, h / 2))
-                // تسميات
-                drawLabel("Dormant", w / 2, frame / 2 + 4)
-                drawLabel("Ouvrant", w / 2, frame * 3)
-                drawLabel("Parclose", w / 2, h - frame * 1.5f)
+                drawCircle(Color(0xFFB0BEC5), 5.dp.toPx(), Offset(w - frame * 3, h / 2))
             }
             TemplateType.DOUBLE_DOOR -> {
-                drawRect(glassColor, Offset(frame, frame),
-                    Size(w - 2 * frame, h - 2 * frame))
-                drawRect(dormantColor, Offset(0f, 0f), Size(w, h),
-                    style = Stroke(frame))
-                // الدفة اليسرى
-                drawRect(ouvrantColor, Offset(frame * 2, frame * 2),
-                    Size(w / 2 - 3 * frame, h - 4 * frame),
-                    style = Stroke(thinFrame))
-                // الدفة اليمنى
-                drawRect(ouvrantColor, Offset(w / 2 + frame, frame * 2),
-                    Size(w / 2 - 3 * frame, h - 4 * frame),
-                    style = Stroke(thinFrame))
-                // المقابض
-                drawCircle(Color(0xFFB0BEC5), 5.dp.toPx(),
-                    Offset(w / 2 - frame, h / 2))
-                drawCircle(Color(0xFFB0BEC5), 5.dp.toPx(),
-                    Offset(w / 2 + frame, h / 2))
-                drawLabel("Dormant", w / 2, frame / 2 + 4)
-                drawLabel("Ouvrant 1", w / 4, frame * 3)
-                drawLabel("Ouvrant 2", 3 * w / 4, frame * 3)
-                drawLabel("Jeu", w / 2, h - frame * 1.5f)
+                drawRect(glassColor, Offset(frame, frame), Size(w - 2 * frame, h - 2 * frame))
+                drawBox(dormantColor, 0f, 0f, w, h, frame)
+                // دفة يمنى
+                drawBox(ouvrantColor, frame * 2, frame * 2,
+                    w / 2 - 3 * frame, h - 4 * frame, thin)
+                // دفة يسرى
+                drawBox(ouvrantColor, w / 2 + frame, frame * 2,
+                    w / 2 - 3 * frame, h - 4 * frame, thin)
+                // Seuil
+                drawRect(thresholdColor, Offset(frame, h - frame * 1.5f),
+                    Size(w - 2 * frame, frame * 0.6f))
+                drawCircle(Color(0xFFB0BEC5), 4.dp.toPx(), Offset(w / 2 - frame, h / 2))
+                drawCircle(Color(0xFFB0BEC5), 4.dp.toPx(), Offset(w / 2 + frame, h / 2))
             }
             TemplateType.SINGLE_WINDOW -> {
-                drawRect(glassColor, Offset(frame, frame),
-                    Size(w - 2 * frame, h - 2 * frame))
-                drawRect(dormantColor, Offset(0f, 0f), Size(w, h),
-                    style = Stroke(frame))
-                drawRect(ouvrantColor,
-                    Offset(frame * 2, frame * 2),
-                    Size(w - 4 * frame, h - 4 * frame),
-                    style = Stroke(thinFrame))
-                drawCircle(Color(0xFFB0BEC5), 5.dp.toPx(),
-                    Offset(w - frame * 3, h / 2))
-                drawLabel("Dormant", w / 2, frame / 2 + 4)
-                drawLabel("Ouvrant", w / 2, frame * 3)
-                drawLabel("Parclose", w / 2, h - frame * 1.5f)
+                drawRect(glassColor, Offset(frame, frame), Size(w - 2 * frame, h - 2 * frame))
+                drawBox(dormantColor, 0f, 0f, w, h, frame)
+                // Parclose داخلي (يفصل الزجاج)
+                drawBox(ouvrantColor, frame * 2, frame * 2,
+                    w - 4 * frame, h - 4 * frame, thin)
+                // خط Parclose
+                drawBox(Color(0xFF81C784), frame * 2.5f, frame * 2.5f,
+                    w - 5 * frame, h - 5 * frame, 2.dp.toPx())
+                drawCircle(Color(0xFFB0BEC5), 5.dp.toPx(), Offset(w - frame * 3, h / 2))
             }
             TemplateType.DOUBLE_WINDOW -> {
-                drawRect(glassColor, Offset(frame, frame),
-                    Size(w - 2 * frame, h - 2 * frame))
-                drawRect(dormantColor, Offset(0f, 0f), Size(w, h),
-                    style = Stroke(frame))
-                drawRect(ouvrantColor, Offset(frame * 2, frame * 2),
-                    Size(w / 2 - 3 * frame, h - 4 * frame),
-                    style = Stroke(thinFrame))
-                drawRect(ouvrantColor, Offset(w / 2 + frame, frame * 2),
-                    Size(w / 2 - 3 * frame, h - 4 * frame),
-                    style = Stroke(thinFrame))
-                drawLabel("Dormant", w / 2, frame / 2 + 4)
-                drawLabel("Ouvrant 1", w / 4, frame * 3)
-                drawLabel("Ouvrant 2", 3 * w / 4, frame * 3)
-                drawLabel("Meneau", w / 2, h / 2)
+                drawRect(glassColor, Offset(frame, frame), Size(w - 2 * frame, h - 2 * frame))
+                drawBox(dormantColor, 0f, 0f, w, h, frame)
+                // Meneau عمودي
+                drawRect(meneauColor, Offset(w / 2 - 3.dp.toPx(), frame),
+                    Size(6.dp.toPx(), h - 2 * frame))
+                // Ouvrant يمين ويسار
+                drawBox(ouvrantColor, frame * 2, frame * 2,
+                    w / 2 - 3 * frame - 3.dp.toPx(), h - 4 * frame, thin)
+                drawBox(ouvrantColor, w / 2 + 3.dp.toPx() + frame, frame * 2,
+                    w / 2 - 3 * frame - 3.dp.toPx(), h - 4 * frame, thin)
+                drawCircle(Color(0xFFB0BEC5), 4.dp.toPx(), Offset(w / 2 - frame * 2, h / 2))
+                drawCircle(Color(0xFFB0BEC5), 4.dp.toPx(), Offset(w / 2 + frame * 2, h / 2))
             }
             TemplateType.SLIDING_WINDOW -> {
-                drawRect(glassColor, Offset(frame, frame),
-                    Size(w - 2 * frame, h - 2 * frame))
-                // Dormant
-                drawRect(dormantColor, Offset(0f, 0f), Size(w, h),
-                    style = Stroke(frame))
-                // Rail (مسار علوي)
+                drawRect(glassColor, Offset(frame, frame), Size(w - 2 * frame, h - 2 * frame))
+                drawBox(dormantColor, 0f, 0f, w, h, frame)
+                // Rail علوي
                 drawRect(railColor, Offset(frame, frame * 1.5f),
-                    Size(w - 2 * frame, frame * 0.7f))
-                // Dormant 1 (درفة ثابتة)
-                drawRect(ouvrantColor, Offset(frame * 2, frame * 3),
-                    Size(w / 2 - 2 * frame, h - 5 * frame),
-                    style = Stroke(thinFrame))
-                // Dormant 2 (درفة منزلقة)
-                drawRect(ouvrantColor, Offset(w / 2 + frame, frame * 3),
-                    Size(w / 2 - 3 * frame, h - 5 * frame),
-                    style = Stroke(thinFrame))
-                // سهم يشير للحركة
-                val arrowY = h / 2
+                    Size(w - 2 * frame, frame * 0.8f))
+                // Rail سفلي
+                drawRect(railColor, Offset(frame, h - frame * 2.3f),
+                    Size(w - 2 * frame, frame * 0.8f))
+                // دفة منزلقة يمنى (خلفية)
+                drawBox(ouvrantColor, frame * 1.5f, frame * 3f,
+                    w / 2 - 2 * frame, h - 6 * frame, thin)
+                // دفة منزلقة يسرى (أمامية)
+                drawBox(ouvrantColor, w / 2 - frame * 1.5f, frame * 3f,
+                    w / 2 - 2 * frame, h - 6 * frame, thin)
+                // سهم الاتجاه
                 drawLine(railColor,
-                    Offset(w / 2 - 20.dp.toPx(), arrowY),
-                    Offset(w / 2 + 20.dp.toPx(), arrowY),
-                    strokeWidth = 2.dp.toPx())
-                drawLabel("Dormant", w / 2, frame / 2 + 4)
-                drawLabel("Rail", w / 2, frame * 1.5f)
-                drawLabel("Coulissant", w / 4, h / 2)
+                    Offset(w * 0.4f, h / 2),
+                    Offset(w * 0.6f, h / 2), 3.dp.toPx())
             }
             TemplateType.CUSTOM -> {
-                // نجمة بسيطة
                 val path = Path().apply {
                     val cx = w / 2; val cy = h / 2
                     val r1 = w * 0.4f; val r2 = w * 0.2f
@@ -373,77 +321,94 @@ fun TemplateDiagram(type: TemplateType) {
                 }
                 drawPath(path, Color(0xFF4FC3F7).copy(alpha = 0.3f))
                 drawPath(path, Color(0xFF4FC3F7), style = Stroke(2.dp.toPx()))
-                drawLabel("Sur mesure", w / 2, h / 2)
             }
         }
     }
 }
 
-// ═══════════════════════════════════════════
-// الصيغ القياسية + الشروحات
-// ═══════════════════════════════════════════
+// ═══ الصيغ لكل نوع ═══
 
 fun standardParams(t: TemplateType): Map<String, Double> = when (t) {
-    TemplateType.SINGLE_DOOR, TemplateType.SINGLE_WINDOW -> mapOf(
-        ParamKeys.BAR_LENGTH to 600.0,
-        ParamKeys.KERF to 0.3,
+    TemplateType.SINGLE_DOOR, TemplateType.DOUBLE_DOOR -> mapOf(
+        ParamKeys.BAR_LENGTH to 600.0, ParamKeys.KERF to 0.3,
+        ParamKeys.DORMANT_WIDTH to 5.0,
+        ParamKeys.OUVRANT_WIDTH to 5.0,
+        ParamKeys.OUVRANT_CLEARANCE to 0.3,
+        ParamKeys.THRESHOLD_HEIGHT to 2.0,
+        ParamKeys.GAP to 0.3
+    )
+    TemplateType.SINGLE_WINDOW -> mapOf(
+        ParamKeys.BAR_LENGTH to 600.0, ParamKeys.KERF to 0.3,
         ParamKeys.DORMANT_WIDTH to 4.5,
         ParamKeys.OUVRANT_WIDTH to 4.0,
-        ParamKeys.OUVRANT_CLEARANCE to 0.5,
+        ParamKeys.OUVRANT_CLEARANCE to 0.3,
         ParamKeys.PARCLOSE_WIDTH to 1.5
     )
-    TemplateType.DOUBLE_DOOR, TemplateType.DOUBLE_WINDOW -> mapOf(
-        ParamKeys.BAR_LENGTH to 600.0,
-        ParamKeys.KERF to 0.3,
+    TemplateType.DOUBLE_WINDOW -> mapOf(
+        ParamKeys.BAR_LENGTH to 600.0, ParamKeys.KERF to 0.3,
         ParamKeys.DORMANT_WIDTH to 4.5,
         ParamKeys.OUVRANT_WIDTH to 4.0,
-        ParamKeys.GAP to 0.5,
-        ParamKeys.PARCLOSE_WIDTH to 1.5
+        ParamKeys.OUVRANT_CLEARANCE to 0.3,
+        ParamKeys.PARCLOSE_WIDTH to 1.5,
+        ParamKeys.MENEAU_WIDTH to 5.0
     )
     TemplateType.SLIDING_WINDOW -> mapOf(
-        ParamKeys.BAR_LENGTH to 600.0,
-        ParamKeys.KERF to 0.3,
+        ParamKeys.BAR_LENGTH to 600.0, ParamKeys.KERF to 0.3,
         ParamKeys.DORMANT_WIDTH to 4.5,
         ParamKeys.OUVRANT_WIDTH to 4.0,
-        ParamKeys.INNER_VERTICAL to 3.5,
-        ParamKeys.TOP_BOTTOM to 2.5
+        ParamKeys.OUVRANT_CLEARANCE to 0.3,
+        ParamKeys.PARCLOSE_WIDTH to 1.5,
+        ParamKeys.RAIL_HEIGHT to 3.0
     )
     TemplateType.CUSTOM -> mapOf(
-        ParamKeys.BAR_LENGTH to 600.0,
-        ParamKeys.KERF to 0.3,
+        ParamKeys.BAR_LENGTH to 600.0, ParamKeys.KERF to 0.3,
         ParamKeys.DORMANT_WIDTH to 4.5,
-        ParamKeys.OUVRANT_WIDTH to 4.0,
         ParamKeys.PARCLOSE_WIDTH to 1.5
     )
 }
 
 fun formulaExplanation(t: TemplateType): List<Pair<String, String>> = when (t) {
-    TemplateType.SINGLE_DOOR, TemplateType.SINGLE_WINDOW -> listOf(
-        "Dormant V" to "H (الارتفاع الكلي) × 2",
+    TemplateType.SINGLE_DOOR -> listOf(
+        "Dormant V" to "H × 2",
         "Dormant H" to "(L - 2×Dormant) × 1",
+        "Seuil" to "(L - 2×Dormant) × 1",
         "Ouvrant V" to "(H - 2×Dormant + 2×Jeu) × 2",
-        "Ouvrant H" to "(L - 2×Dormant + 2×Jeu) - 2×Ouvrant",
-        "Parclose V" to "(Ouvrant V) - 2×Parclose × 2",
-        "Parclose H" to "(Ouvrant H) - 2×Parclose × 1"
+        "Ouvrant H haut" to "((L - 2×Dormant + 2×Jeu) - 2×Ouvrant) × 1",
+        "Ouvrant H bas" to "même + Seuil × 1"
     )
-    TemplateType.DOUBLE_DOOR, TemplateType.DOUBLE_WINDOW -> listOf(
+    TemplateType.DOUBLE_DOOR -> listOf(
+        "Dormant V" to "H × 2",
+        "Dormant H" to "(L - 2×Dormant) × 1",
+        "Seuil" to "(L - 2×Dormant) × 1",
+        "Ouvrant V" to "(H - 2×Dormant + 2×Jeu) × 4",
+        "Ouvrant H haut" to "((L-2×Dormant-Jeu)/2 - 2×Ouvrant) × 2",
+        "Ouvrant H bas" to "même + Seuil × 2"
+    )
+    TemplateType.SINGLE_WINDOW -> listOf(
         "Dormant V" to "H × 2",
         "Dormant H" to "(L - 2×Dormant) × 2",
-        "Ouvrant V" to "(H - 2×Dormant) × 4",
-        "Ouvrant H" to "((L - 2×Dormant - Jeu)/2) - 2×Ouvrant × 4",
-        "Parclose V" to "(Ouvrant V) - 2×Parclose × 4",
-        "Parclose H" to "(Ouvrant H) - 2×Parclose × 4"
+        "Ouvrant V" to "(H - 2×Dormant + 2×Jeu) × 2",
+        "Ouvrant H" to "(L - 2×Dormant + 2×Jeu - 2×Ouvrant) × 2",
+        "Parclose V" to "(Ouvrant V - 2×Parclose) × 2",
+        "Parclose H" to "(Ouvrant H - 2×Parclose) × 2"
+    )
+    TemplateType.DOUBLE_WINDOW -> listOf(
+        "Dormant V" to "H × 2",
+        "Dormant H" to "(L - 2×Dormant) × 2",
+        "Meneau" to "(H - 2×Dormant) × 1",
+        "Ouvrant V" to "(H - 2×Dormant + 2×Jeu) × 4",
+        "Ouvrant H" to "((L-2×Dormant-Meneau)/2+2×Jeu-2×Ouvrant) × 4",
+        "Parclose" to "(Ouvrant - 2×Parclose) × 8"
     )
     TemplateType.SLIDING_WINDOW -> listOf(
         "Dormant V" to "H × 2",
-        "Dormant H" to "(L - 2×Dormant) × 1",
-        "Rail" to "(L - 2×Dormant) × 1",
-        "Ouvrant Coulissant V" to "(H - Dormant - Rail) × 4",
-        "Ouvrant Coulissant H" to "(L/2 - Dormant) × 4"
+        "Dormant H" to "(L - 2×Dormant) × 2",
+        "Rail" to "(L - 2×Dormant) × 2",
+        "Coulissant V" to "(H - 2×Dormant - 2×Rail + 2×Jeu) × 4",
+        "Coulissant H" to "((L-2×Dormant)/2 + 2×Jeu - 2×Ouvrant) × 4",
+        "Parclose" to "(Coulissant - 2×Parclose) × 8"
     )
-    TemplateType.CUSTOM -> listOf(
-        "معاملات حرة" to "عدّل حسب نظامك"
-    )
+    TemplateType.CUSTOM -> listOf("معاملات حرة" to "عدّل حسب نظامك")
 }
 
 fun typeLabel(t: TemplateType): String = when (t) {
@@ -456,12 +421,11 @@ fun typeLabel(t: TemplateType): String = when (t) {
 }
 
 fun typeDescription(t: TemplateType): String = when (t) {
-    TemplateType.SINGLE_DOOR, TemplateType.SINGLE_WINDOW ->
-        "Dormant + Ouvrant + Parclose"
-    TemplateType.DOUBLE_DOOR, TemplateType.DOUBLE_WINDOW ->
-        "Dormant + 2×Ouvrant + Parclose"
-    TemplateType.SLIDING_WINDOW ->
-        "Dormant + Rail + 2×Coulissant"
+    TemplateType.SINGLE_DOOR -> "Dormant + Seuil + Ouvrant (4)"
+    TemplateType.DOUBLE_DOOR -> "Dormant + Seuil + 2×Ouvrant (8)"
+    TemplateType.SINGLE_WINDOW -> "Dormant + Ouvrant + Parclose"
+    TemplateType.DOUBLE_WINDOW -> "Dormant + Meneau + Ouvrant + Parclose"
+    TemplateType.SLIDING_WINDOW -> "Dormant + Rail + Coulissant + Parclose"
     TemplateType.CUSTOM -> "معاملات حرة"
 }
 
@@ -470,9 +434,10 @@ fun paramLabels(): Map<String, String> = mapOf(
     ParamKeys.KERF to "سمك القرص Kerf (سم)",
     ParamKeys.DORMANT_WIDTH to "عرض Dormant (سم)",
     ParamKeys.OUVRANT_WIDTH to "عرض Ouvrant (سم)",
-    ParamKeys.OUVRANT_CLEARANCE to "فراغ Ouvrant (سم)",
+    ParamKeys.OUVRANT_CLEARANCE to "فراغ Ouvrant Jeu (سم)",
     ParamKeys.PARCLOSE_WIDTH to "عرض Parclose (سم)",
     ParamKeys.GAP to "الفراغ بين الدفتين (سم)",
-    ParamKeys.INNER_VERTICAL to "قطاع داخلي رأسي (سم)",
-    ParamKeys.TOP_BOTTOM to "قطاع علوي/سفلي (سم)"
+    ParamKeys.MENEAU_WIDTH to "عرض Meneau (سم)",
+    ParamKeys.RAIL_HEIGHT to "ارتفاع Rail (سم)",
+    ParamKeys.THRESHOLD_HEIGHT to "ارتفاع Seuil (سم)"
 )

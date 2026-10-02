@@ -110,4 +110,7 @@ object ParamKeys {
     const val OUVRANT_CLEARANCE = "ouvrantClearance"
     const val PARCLOSE_WIDTH = "parcloseWidth"
     const val GLASS_CLEARANCE = "glassClearance"
+    const val THRESHOLD_HEIGHT = "thresholdHeight"
+    const val MENEAU_WIDTH = "meneauWidth"
+    const val RAIL_HEIGHT = "railHeight"
 }
