@@ -1,47 +1,76 @@
 package com.example.alucut.data
 
-enum class TemplateCategory { DOOR, WINDOW }
+enum class TemplateCategory { DOOR, WINDOW, COMBINED, ACCESSORY }
 
-enum class TemplateType {
-    SINGLE_DOOR,
-    DOUBLE_DOOR,
-    SINGLE_WINDOW,
-    DOUBLE_WINDOW,
-    SLIDING_WINDOW,
-    CUSTOM
+enum class TemplateType(val label: String, val cat: TemplateCategory) {
+    // 🚪 أبواب
+    SINGLE_DOOR("باب بدفة واحدة", TemplateCategory.DOOR),
+    DOUBLE_DOOR("باب بدفتين", TemplateCategory.DOOR),
+    SLIDING_DOOR("باب منزلق", TemplateCategory.DOOR),
+    FOLDING_DOOR("باب مطوي", TemplateCategory.DOOR),
+    // 🪟 نوافذ
+    FIXED_WINDOW("نافذة ثابتة", TemplateCategory.WINDOW),
+    SINGLE_WINDOW("نافذة بدفة واحدة", TemplateCategory.WINDOW),
+    DOUBLE_WINDOW("نافذة بدفتين", TemplateCategory.WINDOW),
+    TRIPLE_WINDOW("نافذة بثلاث دفات", TemplateCategory.WINDOW),
+    SLIDING_WINDOW_2("منزلقة بدفتين", TemplateCategory.WINDOW),
+    SLIDING_WINDOW_3("منزلقة بثلاث دفات", TemplateCategory.WINDOW),
+    SLIDING_WINDOW_4("منزلقة بأربع دفات", TemplateCategory.WINDOW),
+    VERTICAL_SLIDER("منزلقة رأسياً", TemplateCategory.WINDOW),
+    AWNING_WINDOW("نافذة معلقة", TemplateCategory.WINDOW),
+    HOPPER_WINDOW("نافذة دوارة", TemplateCategory.WINDOW),
+    ARCH_WINDOW("نافذة بأقواس", TemplateCategory.WINDOW),
+    // 🚪🪟 مدمجة
+    WINDOW_DOOR("نافذة مع باب", TemplateCategory.COMBINED),
+    DOOR_SIDELIGHT("باب مع نافذة جانبية", TemplateCategory.COMBINED),
+    DOOR_TRANSOM("باب مع نافذة علوية", TemplateCategory.COMBINED),
+    BALCONY("شرفة", TemplateCategory.COMBINED),
+    // 🔧 إضافات
+    GRILLE("Grille (شبك)", TemplateCategory.ACCESSORY),
+    ROLLER_SHUTTER("Volet roulant", TemplateCategory.ACCESSORY),
+    BLIND("Store (ستارة)", TemplateCategory.ACCESSORY),
+    CUSTOM("شكل مخصص", TemplateCategory.WINDOW)
 }
+
+data class FormulaVariable(
+    val key: String,
+    val label: String,
+    val defaultValue: Double
+)
+
+data class CutPiece(
+    val id: Int,
+    val name: String,
+    val countFormula: String,
+    val lengthFormula: String,
+    val angle1: Int,
+    val angle2: Int,
+    val barType: String
+)
 
 data class Template(
     val id: String,
     val name: String,
     val type: TemplateType,
-    val category: TemplateCategory,
     val imageUri: String = "",
-    val params: Map<String, Double> = emptyMap()
+    val barLengthCm: Double = 600.0,
+    val kerfCm: Double = 0.3,
+    val variables: List<FormulaVariable> = emptyList(),
+    val pieces: List<CutPiece> = emptyList()
 )
 
-data class WindowInput(
-    val count: Int,
-    val widthCm: Double,
-    val heightCm: Double
-)
+data class WindowInput(val count: Int, val widthCm: Double, val heightCm: Double)
 
 data class InputItem(
     val id: Int,
     val templateId: String,
     val templateName: String,
-    val templateType: TemplateType,
-    val templateCategory: TemplateCategory,
     val count: Int,
     val widthCm: Double,
     val heightCm: Double
 )
 
-data class CutRequirement(
-    val type: String,
-    val lengthCm: Double,
-    val quantity: Int
-)
+data class CutRequirement(val type: String, val lengthCm: Double, val quantity: Int)
 
 data class CutItem(val type: String, val lengthMm: Int)
 
@@ -72,45 +101,8 @@ data class CuttingResult(
     val wastePercent: Double
 )
 
-object CutTypes {
-    const val DORMANT_V = "Dormant V"
-    const val DORMANT_H = "Dormant H"
-    const val OUVRANT_V = "Ouvrant V"
-    const val OUVRANT_H = "Ouvrant H"
-    const val TRAVERSE = "Traverse"
-    const val PARCLOSE = "Parclose"
-    const val RAIL = "Rail"
-    const val MENEAU = "Meneau"
-    const val COULISSANT = "Coulissant"
-    const val CADRE = "Cadre"
-    const val CADRE_OUVRANT = "Cadre Ouvrant"
-    const val PORT_ROULETTES = "Port Roulettes"
-    const val PORT_VERREAUX = "Port Verreaux"
-    const val CROUCHEMENT = "Crouchement"
-    const val Z = "Z"
-    const val T = "T"
-}
-
-object ParamKeys {
-    const val BAR_LENGTH = "barLength"
-    const val KERF = "kerf"
-    const val FRAME_THICKNESS = "frameThickness"
-    const val INNER_VERTICAL = "innerVertical"
-    const val TOP_BOTTOM = "topBottom"
-    const val Z_V_OFFSET = "zVOffset"
-    const val Z_H_OFFSET = "zHOffset"
-    const val T_OFFSET = "tOffset"
-    const val GAP = "gap"
-    const val CADRE_OUVRANT_THICKNESS = "cadreOuvrantThickness"
-    const val TOP_BOTTOM_DOUBLE = "topBottomDouble"
-    const val DORMANT_WIDTH = "dormantWidth"
-    const val DORMANT_HEIGHT = "dormantHeight"
-    const val OUVRANT_WIDTH = "ouvrantWidth"
-    const val OUVRANT_HEIGHT = "ouvrantHeight"
-    const val OUVRANT_CLEARANCE = "ouvrantClearance"
-    const val PARCLOSE_WIDTH = "parcloseWidth"
-    const val GLASS_CLEARANCE = "glassClearance"
-    const val THRESHOLD_HEIGHT = "thresholdHeight"
-    const val MENEAU_WIDTH = "meneauWidth"
-    const val RAIL_HEIGHT = "railHeight"
+object BaseVars {
+    const val L = "l"
+    const val H = "h"
+    const val N = "n"
 }

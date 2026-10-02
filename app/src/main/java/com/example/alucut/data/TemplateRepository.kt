@@ -7,12 +7,11 @@ import com.google.gson.reflect.TypeToken
 class TemplateRepository(context: Context) {
     private val prefs = context.getSharedPreferences("alucut_templates", Context.MODE_PRIVATE)
     private val gson = Gson()
-    private val currentVersion = 2
+    private val currentVersion = 3
 
     fun getTemplates(): List<Template> {
         val savedVersion = prefs.getInt("version", 0)
         if (savedVersion != currentVersion) {
-            // ترقية: نعيد التحميل الافتراضي
             val defaults = TemplateDefaults.defaultTemplates()
             saveTemplates(defaults)
             prefs.edit().putInt("version", currentVersion).apply()
@@ -26,7 +25,7 @@ class TemplateRepository(context: Context) {
         } else {
             val type = object : TypeToken<List<Template>>() {}.type
             try {
-                gson.fromJson<List<Template>>(json, type) ?: TemplateDefaults.defaultTemplates()
+                gson.fromJson<List<Template>>(json, type) ?: emptyList()
             } catch (e: Exception) {
                 TemplateDefaults.defaultTemplates()
             }
@@ -53,7 +52,6 @@ class TemplateRepository(context: Context) {
     }
 
     fun deleteTemplate(id: String) {
-        val list = getTemplates().filterNot { it.id == id }
-        saveTemplates(list)
+        saveTemplates(getTemplates().filterNot { it.id == id })
     }
 }
