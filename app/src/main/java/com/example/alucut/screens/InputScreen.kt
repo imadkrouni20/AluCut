@@ -43,31 +43,22 @@ fun InputScreen(
     var snackbar by remember { mutableStateOf<String?>(null) }
 
     Box(Modifier.fillMaxSize().background(Color(0xFF0A0A0A))) {
-        // الرسم التوضيحي
         TemplateIllustration(
             type = template.type,
             modifier = Modifier.fillMaxSize().padding(top = 60.dp, bottom = 140.dp)
         )
 
-        // زر الرجوع
         FloatingBackButton(onBack = onBack, modifier = Modifier.align(Alignment.TopStart))
 
-        // اسم القالب (بدون شريط)
         Surface(
             modifier = Modifier.align(Alignment.TopCenter).padding(top = 16.dp),
             shape = RoundedCornerShape(20.dp),
             color = Color(0xCC1E1E1E)
         ) {
-            Text(
-                template.name,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp
-            )
+            Text(template.name, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
         }
 
-        // Chips
         if (items.isNotEmpty()) {
             Row(
                 Modifier.align(Alignment.TopStart).fillMaxWidth()
@@ -81,10 +72,8 @@ fun InputScreen(
                         color = MaterialTheme.colorScheme.primaryContainer,
                         modifier = Modifier.height(30.dp)
                     ) {
-                        Row(
-                            Modifier.padding(start = 10.dp, end = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                        Row(Modifier.padding(start = 10.dp, end = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically) {
                             Text("${it.count}× (%.0f×%.0f)".format(it.widthCm, it.heightCm),
                                 fontSize = 11.sp,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -101,27 +90,13 @@ fun InputScreen(
             }
         }
 
-        // حقول الإدخال
-        FloatingInput(
-            value = widthText,
-            onValueChange = { widthText = it },
-            label = "العرض (سم)",
-            modifier = Modifier.align(Alignment.TopCenter).padding(top = 100.dp)
-        )
-        FloatingInput(
-            value = heightText,
-            onValueChange = { heightText = it },
-            label = "العلو (سم)",
-            modifier = Modifier.align(Alignment.CenterEnd).padding(end = 8.dp)
-        )
-        FloatingInput(
-            value = countText,
-            onValueChange = { countText = it },
-            label = "العدد",
-            modifier = Modifier.align(Alignment.Center)
-        )
+        FloatingInput(widthText, { widthText = it }, "العرض (سم)",
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = 100.dp))
+        FloatingInput(heightText, { heightText = it }, "العلو (سم)",
+            modifier = Modifier.align(Alignment.CenterEnd).padding(end = 8.dp))
+        FloatingInput(countText, { countText = it }, "العدد",
+            modifier = Modifier.align(Alignment.Center))
 
-        // خطأ
         if (error.isNotEmpty()) {
             Surface(
                 modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 130.dp),
@@ -133,7 +108,6 @@ fun InputScreen(
             }
         }
 
-        // Snackbar
         snackbar?.let { msg ->
             LaunchedEffect(msg) {
                 kotlinx.coroutines.delay(1500)
@@ -150,16 +124,13 @@ fun InputScreen(
             }
         }
 
-        // الأزرار السفلية
         Surface(
             modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(),
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 6.dp
         ) {
-            Column(
-                Modifier.fillMaxWidth().padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+            Column(Modifier.fillMaxWidth().padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     onClick = {
                         error = ""
@@ -171,8 +142,7 @@ fun InputScreen(
                             h == null || h <= 0 -> error = "العلو غير صحيح"
                             c == null || c <= 0 -> error = "العدد غير صحيح"
                             else -> {
-                                onAddItem(InputItem(0, template.id, template.name,
-                                    template.type, template.category, c, w, h))
+                                onAddItem(InputItem(0, template.id, template.name, c, w, h))
                                 widthText = ""
                                 heightText = ""
                                 countText = "1"
@@ -188,8 +158,7 @@ fun InputScreen(
                     Text("إضافة المقاس", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
 
-                Row(Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(
                         onClick = onAddAnotherType,
                         modifier = Modifier.weight(1f).height(48.dp),
