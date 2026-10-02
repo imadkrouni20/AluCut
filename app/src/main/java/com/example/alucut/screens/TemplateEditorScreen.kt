@@ -23,7 +23,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.alucut.data.*
 import com.example.alucut.ui.FloatingBackButton
-import com.example.alucut.ui.colorForType
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

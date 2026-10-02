@@ -106,3 +106,22 @@ object BaseVars {
     const val H = "h"
     const val N = "n"
 }
+
+// ═══ CutTypes: أسماء القطع للعرض والرسم ═══
+object CutTypes {
+    const val CADRE = "Cadre"
+    const val CADRE_OUVRANT = "Cadre Ouvrant"
+    const val DORMANT = "Dormant"
+    const val OUVRANT = "Ouvrant"
+    const val PARCLOSE = "Parclose"
+    const val Z = "Z"
+    const val T = "T"
+    const val MENEAU = "Meneau"
+    const val TRAVERSE = "Traverse"
+    const val SEUIL = "Seuil"
+    const val RAIL = "Rail"
+    const val COULISSANT = "Coulissant"
+    const val PORT_ROULETTES = "Port Roulettes"
+    const val PORT_VERREAUX = "Port Verreaux"
+    const val CROUCHEMENT = "Crouchement"
+}
