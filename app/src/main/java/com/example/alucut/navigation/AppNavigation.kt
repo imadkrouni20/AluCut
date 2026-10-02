@@ -1,32 +1,105 @@
 package com.example.alucut.navigation
 
 import androidx.compose.runtime.*
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.alucut.data.*
-import com.example.alucut.screens.InputScreen
-import com.example.alucut.screens.ResultScreen
+import com.example.alucut.screens.*
 
 @Composable
-fun AppNavigation() {
+fun AppNavigation(templateRepo: TemplateRepository) {
     val navController = rememberNavController()
-    var result by remember { mutableStateOf<CuttingResult?>(null) }
 
-    NavHost(navController = navController, startDestination = "input") {
-        composable("input") {
-            InputScreen(
-                onCalculate = { input, config ->
-                    val reqs = WindowCalculator.calculateRequirements(input, config)
-                    result = CuttingOptimizer.optimize(
-                        reqs, config.barLengthCm, config.kerfCm
-                    )
-                    navController.navigate("result")
+    var templates by remember { mutableStateOf(templateRepo.getTemplates()) }
+    var currentCategory by remember { mutableStateOf(TemplateCategory.DOOR) }
+    var currentTemplate by remember { mutableStateOf<Template?>(null) }
+    var currentResult by remember { mutableStateOf<CuttingResult?>(null) }
+
+    fun refreshTemplates() {
+        templates = templateRepo.getTemplates()
+    }
+
+    NavHost(navController = navController, startDestination = "home") {
+        composable("home") {
+            HomeScreen(
+                onCategorySelected = { catStr ->
+                    currentCategory = if (catStr == "DOOR") TemplateCategory.DOOR
+                                      else TemplateCategory.WINDOW
+                    navController.navigate("templates")
                 }
             )
         }
+
+        composable("templates") {
+            TemplatesScreen(
+                category = currentCategory,
+                templates = templates,
+                onBack = { navController.popBackStack() },
+                onTemplateSelected = { t ->
+                    currentTemplate = t
+                    navController.navigate("input")
+                },
+                onEdit = { t ->
+                    currentTemplate = t
+                    navController.navigate("edit_template/false")
+                },
+                onAdd = {
+                    currentTemplate = null
+                    navController.navigate("edit_template/true")
+                },
+                onDelete = { t ->
+                    templateRepo.deleteTemplate(t.id)
+                    refreshTemplates()
+                }
+            )
+        }
+
+        composable("input") {
+            val t = currentTemplate
+            if (t == null) {
+                LaunchedEffect(Unit) { navController.popBackStack() }
+            } else {
+                InputScreen(
+                    template = t,
+                    onBack = { navController.popBackStack() },
+                    onCalculate = { input ->
+                        val reqs = Calculator.calculate(t, input)
+                        val barLen = t.params[ParamKeys.BAR_LENGTH] ?: 600.0
+                        val kerf = t.params[ParamKeys.KERF] ?: 0.3
+                        currentResult = CuttingOptimizer.optimize(reqs, barLen, kerf)
+                        navController.navigate("result")
+                    }
+                )
+            }
+        }
+
         composable("result") {
-            ResultScreen(result = result, onBack = { navController.popBackStack() })
+            ResultScreen(
+                result = currentResult,
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = "edit_template/{isNew}",
+            arguments = listOf(navArgument("isNew") { type = NavType.BoolType })
+        ) { backStackEntry ->
+            val isNew = backStackEntry.arguments?.getBoolean("isNew") ?: true
+            TemplateEditorScreen(
+                template = currentTemplate,
+                isNew = isNew,
+                category = currentCategory,
+                onBack = { navController.popBackStack() },
+                onSave = { t ->
+                    if (isNew) templateRepo.addTemplate(t)
+                    else templateRepo.updateTemplate(t)
+                    refreshTemplates()
+                    navController.popBackStack()
+                }
+            )
         }
     }
 }

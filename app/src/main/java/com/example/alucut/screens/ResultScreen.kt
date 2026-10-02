@@ -183,12 +183,14 @@ fun BarCard(bar: BarCut, barLengthMm: Int) {
 
 fun colorForType(type: String): Color = when (type) {
     CutTypes.CADRE -> Color(0xFF4FC3F7)
+    CutTypes.CADRE_OUVRANT -> Color(0xFF4FC3F7)
     CutTypes.PORT_ROULETTES -> Color(0xFF81C784)
     CutTypes.PORT_VERREAUX -> Color(0xFFFFB74D)
     CutTypes.CROUCHEMENT -> Color(0xFFBA68C8)
+    CutTypes.Z -> Color(0xFF4DB6AC)
+    CutTypes.T -> Color(0xFFE57373)
     else -> Color(0xFF9E9E9E)
 }
-
 @Composable
 fun BarVisualization(cuts: List<CutItem>, barLengthMm: Int, wasteMm: Int) {
     Row(
